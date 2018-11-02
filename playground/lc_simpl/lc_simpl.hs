@@ -1,5 +1,4 @@
-{-# LANGUAGE FlexibleContexts #-}
-
+{-# LANGUAGE FlexibleContexts #-} 
 import Text.Parsec
 import Text.Parsec.Char
 import Text.Parsec.Pos
@@ -19,6 +18,8 @@ data Typ = Int
          | Fun Typ Typ
         deriving Show
 
+
+
 -- Expressions: i | x | M :: A | \ x . N | L M
 data Expr = Lit SourcePos Integer  -- Literal: i
           | Var SourcePos Var       -- Variable: x
@@ -28,7 +29,12 @@ data Expr = Lit SourcePos Integer  -- Literal: i
           | Let SourcePos Var Expr  -- Bind name to Expr
         deriving Show
 
-data SourceCode = SC [Expr]
+-- Only online comments, which starts with "%".
+data Comment = Comment SourcePos String
+    deriving Show
+
+data SourceElem = SE Expr | SC Comment
+    deriving Show
 
 -- Parser --
 {-
@@ -42,6 +48,11 @@ data SourceCode = SC [Expr]
 -}
 
 
+-- Combinators.
+
+eol :: Stream s m Char => ParsecT s u m ()
+eol = void newline <|> eof
+
 whitespace :: Stream s m Char => ParsecT s u m Char
 whitespace = satisfy (\x -> isSpace x && x /= '\n')
 
@@ -53,6 +64,9 @@ betweenSpaces = between whitespaces whitespaces
 
 betweenParan :: Stream s m Char => ParsecT s u m a -> ParsecT s u m a
 betweenParan = between (char '(') (char ')')
+
+myChar :: Stream s m Char => ParsecT s u m Char
+myChar = satisfy (\x -> x /= '\n')
 
 -- Literal
 
@@ -111,23 +125,18 @@ bind = Let <$> getPosition <*> bindLet <*> app
 --
 
 expression :: Stream s m Char => ParsecT s u m Expr
-expression = bind <* eof
+expression = bind  <* char ';'
 
--- Parser
+-- Expression parser.
 parseExpr :: String -> Either ParseError Expr
 parseExpr = parse expression ""
 
----
-
-eol :: Stream s m Char => ParsecT s u m ()
-eol = void newline <|> eof
-
-bind' :: Stream s m Char => ParsecT s u m Expr
-bind' = Let <$> getPosition <*> bindLet <*> var
+-- Onelines comment parser.
+comments :: Stream s m Char => ParsecT s u m Comment
+comments = Comment <$> getPosition <*> (betweenSpaces (string "%" *> many myChar))
 
 -- Parse source code --
 
-parseCode :: Stream s m Char => ParsecT s u m [Expr]
-parseCode = endBy (bind <* (char ';')) eol
-
-parseFile = parseFromFile parseCode
+parseCode :: Stream s m Char => ParsecT s u m [SourceElem]
+parseCode = endBy (SE <$> expression <|> SC <$> comments) eol
+parseFile path = parseFromFile parseCode path
