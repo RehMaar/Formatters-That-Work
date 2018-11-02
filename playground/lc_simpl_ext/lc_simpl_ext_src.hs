@@ -177,9 +177,6 @@ parseExp = parse expression ""
 eol :: Stream s m Char => ParsecT s u m ()
 eol = void newline <|> eof
 
-bind' :: Stream s m Char => ParsecT s u m Exp
-bind' = Let <$> getPosition <*> bindLet <*> var
-
 -- Parse source code --
 
 parseCode :: Stream s m Char => ParsecT s u m [Exp]
