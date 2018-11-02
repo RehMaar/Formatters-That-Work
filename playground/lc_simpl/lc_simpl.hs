@@ -2,7 +2,10 @@
 
 import Text.Parsec
 import Text.Parsec.Char
+import Text.Parsec.Pos
+import Text.Parsec.ByteString
 import Data.Functor
+import Data.Char
 
 -- Simply-typed lambda calculus with integer literals
 -- and explicit type annotatopns.
@@ -17,13 +20,15 @@ data Typ = Int
         deriving Show
 
 -- Expressions: i | x | M :: A | \ x . N | L M
-data Expr = Lit Integer  -- Literal: i
-         | Var Var       -- Variable: x
-         | Ann Expr Typ  -- Annotation: M :: A
-         | Lam Var Expr  -- Lambda abstraction: \ x . N
-         | App Expr Expr -- Application: L M
-         | Let Var Expr  -- Bind name to Expr
+data Expr = Lit SourcePos Integer  -- Literal: i
+          | Var SourcePos Var       -- Variable: x
+          | Lam SourcePos Var Expr  -- Lambda abstraction: \ x . N
+          | Ann SourcePos Expr Typ  -- Annotation: M :: A
+          | App SourcePos Expr Expr -- Application: L M
+          | Let SourcePos Var Expr  -- Bind name to Expr
         deriving Show
+
+data SourceCode = SC [Expr]
 
 -- Parser --
 {-
@@ -36,8 +41,15 @@ data Expr = Lit Integer  -- Literal: i
     * Binding: let name = expr
 -}
 
+
+whitespace :: Stream s m Char => ParsecT s u m Char
+whitespace = satisfy (\x -> isSpace x && x /= '\n')
+
+whitespaces :: Stream s m Char => ParsecT s u m ()
+whitespaces = skipMany whitespace
+
 betweenSpaces :: Stream s m Char => ParsecT s u m a -> ParsecT s u m a
-betweenSpaces = between spaces spaces
+betweenSpaces = between whitespaces whitespaces
 
 betweenParan :: Stream s m Char => ParsecT s u m a -> ParsecT s u m a
 betweenParan = between (char '(') (char ')')
@@ -45,7 +57,7 @@ betweenParan = between (char '(') (char ')')
 -- Literal
 
 lit :: Stream s m Char => ParsecT s u m Expr
-lit = Lit <$> read <$> betweenSpaces (many1 digit)
+lit = Lit <$> getPosition <*> (read <$> betweenSpaces (many1 digit))
 
 -- Variable name
 
@@ -53,7 +65,7 @@ varRow :: Stream s m Char => ParsecT s u m String
 varRow = betweenSpaces (many1 letter)
 
 var :: Stream s m Char => ParsecT s u m Expr
-var = Var <$> varRow
+var = Var <$> getPosition <*> varRow
 
 -- Lambda
 
@@ -61,7 +73,7 @@ lamBound :: Stream s m Char => ParsecT s u m [Var]
 lamBound = char '#' *> betweenSpaces (many1 varRow) <* char '.'
 
 lam :: Stream s m Char => ParsecT s u m Expr
-lam = flip (foldr Lam) <$> lamBound <*> app
+lam = flip <$> foldr <$> Lam <$> getPosition <*> lamBound <*> app
 
 -- Type annotation
 
@@ -78,7 +90,7 @@ typ :: Stream s m Char => ParsecT s u m Typ
 typ = typSep *> betweenSpaces (typFun <|> typBase)
 
 ann :: Stream s m Char => ParsecT s u m Expr
-ann = Ann <$> app <*> typ
+ann = Ann <$> getPosition <*> app <*> typ
 
 -- Application
 
@@ -86,7 +98,7 @@ term :: Stream s m Char => ParsecT s u m Expr
 term = betweenSpaces (lit <|> var <|> lam <|> betweenParan app)
 
 app :: Stream s m Char => ParsecT s u m Expr
-app = foldl App <$> term <*> many term
+app = foldl <$> App <$> getPosition <*> term <*> many term
 
 -- Binding
 
@@ -94,17 +106,28 @@ bindLet :: Stream s m Char => ParsecT s u m Var
 bindLet = string "let" *> betweenSpaces varRow <* char '='
 
 bind :: Stream s m Char => ParsecT s u m Expr
-bind = Let <$> bindLet <*> app
+bind = Let <$> getPosition <*> bindLet <*> app
+
+--
+
+expression :: Stream s m Char => ParsecT s u m Expr
+expression = bind <* eof
 
 -- Parser
-
 parseExpr :: String -> Either ParseError Expr
-parseExpr = parse (bind <|> app <* eof) ""
+parseExpr = parse expression ""
 
-----------------
+---
 
-main = do
-    line <- getLine
-    case parseExpr line of
-        Left e     -> putStrLn "parse error"
-        Right expr -> putStrLn $ show expr
+eol :: Stream s m Char => ParsecT s u m ()
+eol = void newline <|> eof
+
+bind' :: Stream s m Char => ParsecT s u m Expr
+bind' = Let <$> getPosition <*> bindLet <*> var
+
+-- Parse source code --
+
+parseCode :: Stream s m Char => ParsecT s u m [Expr]
+parseCode = endBy (bind <* (char ';')) eol
+
+parseFile = parseFromFile parseCode
