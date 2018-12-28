@@ -134,15 +134,15 @@ handleHWCB (G.HsWC _ body) = handleImBdrs body
 --handleImBdrs :: G.HsImplicitBndrs G.GhcPs id -> String
 handleImBdrs (G.HsIB _ body _) = handleType $ G.unLoc body
 
-handleType (G.HsQualTy _ _ ) = "HsQualTy"
+--handleType (G.HsQualTy _ _ ) = "HsQualTy"
 handleType (G.HsTyVar _ l) = handleFunBindId $ G.unLoc l
-handleType (G.HsAppsTy at) = concatMap ((++ " ") . handleAppTy . G.unLoc) at
+handleType (G.HsAppsTy at) = unwords $  (handleAppTy . G.unLoc) <$> at
 handleType (G.HsAppTy t1 t2) = (handleType $ G.unLoc t1) ++ " " ++ (handleType $ G.unLoc t1)
 handleType (G.HsFunTy t1 t2) = (handleType $ G.unLoc t1) ++ " -> " ++ (handleType $ G.unLoc t1)
-handleType (G.HsListTy _) = "HsListTy"
+--handleType (G.HsListTy _) = "HsListTy"
 handleType (G.HsTupleTy _ tps) = "(" ++ handleTupleTy tps ++ ")"
-handleType (G.HsParTy _) = "HsParTy"
-handleType _ = "tother"
+--handleType (G.HsParTy _) = "HsParTy"
+handleType _ = error "Unsupported sig type"
 
 handleAppTy (G.HsAppInfix l) = handleFunBindId $ G.unLoc l
 handleAppTy (G.HsAppPrefix t) = handleType $ G.unLoc t
@@ -155,13 +155,13 @@ handleTupleTy (t:ts) = (handleType $ G.unLoc t) ++ "," ++ handleTupleTy ts
 matchBind (G.FunBind id match co fvs ticks) =
     let
         funBindName = handleFunBindId $ G.unLoc id
-        matchStr = handleMatchGroup match
-    in funBindName ++ " = " ++ matchStr
+        matchStr    = handleMatchGroup match
+    in funBindName ++ " " ++ matchStr
 
 matchBind _ = error "other bind"
 
---handleMatchGroup :: G.MatchGroup p (G.GenLocated l (G.HsExpr G.GhcPs)) -> String
-handleMatchGroup (G.MG alts argstys resty origin) = unwords $ mgAlts <$> G.unLoc <$> G.unLoc alts
+handleMatchGroup :: G.MatchGroup G.GhcPs (G.LHsExpr G.GhcPs) -> String
+handleMatchGroup (G.MG alts _ _ origin) = unwords $ (mgAlts . G.unLoc) <$> G.unLoc alts
 
 --handleMatchGroup _ = error "other match group; huh?"
 
@@ -170,7 +170,9 @@ mgAlts (G.Match ctx pats grhss) =
     let
         argh = getARGHHHGuard grhss
         localBinds = getARGHHHWhere grhss
-    in (unwords $ argh) ++ (if null localBinds then "" else " where " ++ (localBinds))
+        spats = unwords $ getInParameters <$> pats
+        body = " = " ++ (unwords $ argh) ++ (if null localBinds then "" else " where " ++ (localBinds))
+    in spats ++ body ++ ";"
     where
         -- guard is guards and body
         -- body :: Located (HsExpr p)
@@ -182,6 +184,7 @@ mgAlts (G.Match ctx pats grhss) =
         getInParameters pat =
             case G.unLoc pat of
                 G.VarPat id -> handleFunBindId $ G.unLoc id
+                G.ConPatIn id det -> "ConPatIn"
                 -- TODO potom
                 _           -> error "other pat"
 
@@ -193,20 +196,24 @@ handleExpr :: G.HsExpr G.GhcPs -> String
 handleExpr (G.HsVar name) = (handleFunBindId $ G.unLoc name)
 handleExpr (G.HsLet locbinds expr) =
      "let " ++
-     "local: " ++ (handleLocalBinds $ G.unLoc locbinds) ++
+     (handleLocalBinds $ G.unLoc locbinds) ++
      " in " ++ (handleExpr $ G.unLoc expr)
 handleExpr (G.HsOverLit name) = handleOverLit name
-handleExpr (G.HsLit name) = "lit"
+handleExpr (G.HsLit name) = handleLit name
 handleExpr (G.HsLam _) = "lam"
 handleExpr (G.HsApp expr1 expr2) = (handleExpr $G.unLoc expr1) ++ " (" ++ (handleExpr $ G.unLoc expr2) ++ ")" -- for operators like (+)
 handleExpr (G.OpApp le op _ re) = (handleExpr $ G.unLoc le) ++ " "
                                   ++ (handleExpr $ G.unLoc op) ++ " "
                                   ++ (handleExpr $ G.unLoc re)
-handleExpr (G.HsPar _) = "par"
-handleExpr (G.HsCase _ _) = "case"
-handleExpr (G.HsIf _ _ _ _) = "if"
+handleExpr (G.HsPar expr) = "(" ++ (handleExpr $ G.unLoc expr) ++ ")"
+--handleExpr (G.HsCase expr match) = "case " ++ (handleExpr $ G.unLoc expr) ++ " of " ++ handleMatchGroup match
+handleExpr (G.HsIf _ cond thn els) = "if " ++ (handleExpr $ G.unLoc cond) ++ " then " ++ (handleExpr $ G.unLoc thn) ++ " else " ++(handleExpr $ G.unLoc els)
 handleExpr (G.ExplicitTuple tup _ ) = handleTuple $ G.unLoc <$> tup
-handleExpr c = ctorExprPrint c
+handleExpr c = error $ "Unsupported " ++ ctorExprPrint c
+
+handleLit (G.HsChar _ c) = show c
+handleLit (G.HsString _ c) = show c
+handleLit _ = error "unsupported litterals"
 
 handleOverLit :: G.HsOverLit G.GhcPs -> String
 handleOverLit (G.OverLit val _ _ _) = handleOverLitVal val
@@ -224,9 +231,15 @@ handleLocalBinds (G.HsIPBinds v) = "implicit"
 handleLocalBinds G.EmptyLocalBinds = ""
 
 handleValBinds :: G.HsValBinds G.GhcPs -> String
-handleValBinds (G.ValBindsIn bds sigs) = concatMap (\(e, t) -> t ++ " " ++ e ++ ";") $ zip (valueBindings bds) (typeBindings sigs)
+handleValBinds (G.ValBindsIn bds sigs) =
+    let types = typeBindings sigs
+        vals = valueBindings bds
+    in if null types
+    then unwords vals
+    else
+    concatMap (\(e, t) -> t ++ " " ++ e) $ zip (valueBindings bds) (typeBindings sigs)
     where
-        valueBindings bds =  matchBind <$> G.unLoc <$> G.bagToList bds
+        valueBindings bds = matchBind <$> G.unLoc <$> G.bagToList bds
         typeBindings sigs = matchTypeSig <$> G.unLoc <$> sigs
 
 handleValBinds (G.ValBindsOut _ _) = "valbindsout"
