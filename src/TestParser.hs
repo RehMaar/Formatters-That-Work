@@ -4,6 +4,10 @@
 {-# LANGUAGE FlexibleInstances, FlexibleContexts #-}
 {-# LANGUAGE UndecidableInstances #-}
 
+
+module TestParser where
+
+
 import Language.Haskell.GHC.ExactPrint
 import qualified GHC as G
 import qualified OccName as G
@@ -16,6 +20,8 @@ import Language.Haskell.GHC.ExactPrint.Types as Tps
 
 import qualified Data.Map.Strict as Map
 import qualified FastString as FS
+
+import Data.List
 
 data Import = Import {
     iName :: String,
@@ -62,6 +68,10 @@ data Hs = Hs {
     hsDecls   :: [Decls]
 }
 
+deriving instance Show Expr
+deriving instance Show Pat
+deriving instance Show Match
+deriving instance Show Bind
 deriving instance Show Decls
 deriving instance Show Import
 deriving instance Show Hs
@@ -70,13 +80,24 @@ an file = do
         res <- Ps.parseModule file
         case res of
             Left  (src, str) -> error str
-            Right (ans, pds) -> return $ show $ ans
+            Right (ans, pds) -> return $ show $ headerComments $ ans
+
+headerComments = handleAnn . snd . head . Map.toList
+  where
+    handleAnn:: Annotation -> String
+    handleAnn (Ann _ _ _ d _ _) = concatMap (hd . fst) d
+      where
+        hd (AnnComment cmt) = cmnt cmt
+        hd _ = ""
+
+        cmnt (Comment cont id orig) = if "--" `isPrefixOf` cont then "{-" ++ tail (tail cont) ++ "-}" else cont
 
 ps file = do
         res <- Ps.parseModule file
         case res of
             Left  (src, str) -> error str
             Right (ans, pds) -> return $ show $ handleSmth ans $ doSmth $ toDec $ G.hsmodDecls $ G.unLoc $ pds
+
 toDec :: [G.LHsDecl a] -> [G.HsDecl a]
 toDec = fmap G.unLoc
 
@@ -91,14 +112,44 @@ handleSmth _ = id
 doSmth = fmap matchD . filter isMatchCtor
 
 isMatchCtor (G.ValD _) = True
+isMatchCtor (G.SigD _) = True
 isMatchCtor _ = False
 
---matchD (G.SigD a) = matchTypeSig a
 --matchD (G.InstD a) = Inst
 matchD (G.ValD  a) = matchBind a
---matchD (G.SigD  a) = Sig
+matchD (G.SigD  a) = matchTypeSig a
 matchD _ = undefined
 
+
+matchTypeSig :: G.Sig G.GhcPs -> String
+matchTypeSig (G.TypeSig id thing) =
+    let funBindName = concatMap handleFunBindId (G.unLoc <$> id)
+        matchType = handleHWCB thing
+    in funBindName ++ " :: " ++ matchType ++ ";"
+matchTypeSig _ = "type: unknown"
+
+--handleHWCB :: G.HsWildCardBndrs id G.GhcPs   -> String
+handleHWCB (G.HsWC _ body) = handleImBdrs body
+
+--handleImBdrs :: G.HsImplicitBndrs G.GhcPs id -> String
+handleImBdrs (G.HsIB _ body _) = handleType $ G.unLoc body
+
+handleType (G.HsQualTy _ _ ) = "HsQualTy"
+handleType (G.HsTyVar _ l) = handleFunBindId $ G.unLoc l
+handleType (G.HsAppsTy at) = concatMap ((++ " ") . handleAppTy . G.unLoc) at
+handleType (G.HsAppTy t1 t2) = (handleType $ G.unLoc t1) ++ " " ++ (handleType $ G.unLoc t1)
+handleType (G.HsFunTy t1 t2) = (handleType $ G.unLoc t1) ++ " -> " ++ (handleType $ G.unLoc t1)
+handleType (G.HsListTy _) = "HsListTy"
+handleType (G.HsTupleTy _ tps) = "(" ++ handleTupleTy tps ++ ")"
+handleType (G.HsParTy _) = "HsParTy"
+handleType _ = "tother"
+
+handleAppTy (G.HsAppInfix l) = handleFunBindId $ G.unLoc l
+handleAppTy (G.HsAppPrefix t) = handleType $ G.unLoc t
+
+handleTupleTy [] = ""
+handleTupleTy (t:[]) = handleType $ G.unLoc t
+handleTupleTy (t:ts) = (handleType $ G.unLoc t) ++ "," ++ handleTupleTy ts
 
 --matchBind :: G.HsBindLR idL G.GhcPs -> String
 matchBind (G.FunBind id match co fvs ticks) =
@@ -119,7 +170,7 @@ mgAlts (G.Match ctx pats grhss) =
     let
         argh = getARGHHHGuard grhss
         localBinds = getARGHHHWhere grhss
-    in (unwords $ argh) ++ " where " ++ (localBinds)
+    in (unwords $ argh) ++ (if null localBinds then "" else " where " ++ (localBinds))
     where
         -- guard is guards and body
         -- body :: Located (HsExpr p)
@@ -136,28 +187,26 @@ mgAlts (G.Match ctx pats grhss) =
 
 -- Get Name of THE Function!
 handleFunBindId (G.Unqual name) = G.occNameString name
-handleFunBindId (G.Qual _ _) = "qual"
-
-matchTypeSig (G.TypeSig locs hswt) = Tps.mkAnnKey <$> locs
-matchTypeSig _ = undefined
+handleFunBindId (G.Qual mod name) = (G.moduleNameString mod) ++ "." ++ (G.occNameString name)
 
 handleExpr :: G.HsExpr G.GhcPs -> String
-handleExpr (G.HsVar name) = handleFunBindId $ G.unLoc name
+handleExpr (G.HsVar name) = (handleFunBindId $ G.unLoc name)
 handleExpr (G.HsLet locbinds expr) =
      "let " ++
      "local: " ++ (handleLocalBinds $ G.unLoc locbinds) ++
      " in " ++ (handleExpr $ G.unLoc expr)
-handleExpr (G.HsOverLit name) = "overlit: " ++ handleOverLit name
+handleExpr (G.HsOverLit name) = handleOverLit name
 handleExpr (G.HsLit name) = "lit"
 handleExpr (G.HsLam _) = "lam"
-handleExpr (G.HsApp _ _) = "app"
-handleExpr (G.OpApp le op _ re) = "opapp: " ++ (handleExpr $ G.unLoc le) ++ " "
-                                            ++ (handleExpr $ G.unLoc op) ++ " "
-                                            ++ (handleExpr $ G.unLoc re)
+handleExpr (G.HsApp expr1 expr2) = (handleExpr $G.unLoc expr1) ++ " (" ++ (handleExpr $ G.unLoc expr2) ++ ")" -- for operators like (+)
+handleExpr (G.OpApp le op _ re) = (handleExpr $ G.unLoc le) ++ " "
+                                  ++ (handleExpr $ G.unLoc op) ++ " "
+                                  ++ (handleExpr $ G.unLoc re)
 handleExpr (G.HsPar _) = "par"
 handleExpr (G.HsCase _ _) = "case"
 handleExpr (G.HsIf _ _ _ _) = "if"
-handleExpr _ = "other"
+handleExpr (G.ExplicitTuple tup _ ) = handleTuple $ G.unLoc <$> tup
+handleExpr c = ctorExprPrint c
 
 handleOverLit :: G.HsOverLit G.GhcPs -> String
 handleOverLit (G.OverLit val _ _ _) = handleOverLitVal val
@@ -172,12 +221,13 @@ handleOverLit (G.OverLit val _ _ _) = handleOverLitVal val
 handleLocalBinds :: G.HsLocalBinds G.GhcPs -> String
 handleLocalBinds (G.HsValBinds v) = handleValBinds v
 handleLocalBinds (G.HsIPBinds v) = "implicit"
-handleLocalBinds G.EmptyLocalBinds = "empty"
+handleLocalBinds G.EmptyLocalBinds = ""
 
 handleValBinds :: G.HsValBinds G.GhcPs -> String
-handleValBinds (G.ValBindsIn bds sigs) =  valueBindings bds --"valbindsin"
+handleValBinds (G.ValBindsIn bds sigs) = concatMap (\(e, t) -> t ++ " " ++ e ++ ";") $ zip (valueBindings bds) (typeBindings sigs)
     where
-        valueBindings bds = unwords $ matchBind <$> G.unLoc <$> G.bagToList bds
+        valueBindings bds =  matchBind <$> G.unLoc <$> G.bagToList bds
+        typeBindings sigs = matchTypeSig <$> G.unLoc <$> sigs
 
 handleValBinds (G.ValBindsOut _ _) = "valbindsout"
 
@@ -186,6 +236,11 @@ handleValBinds (G.ValBindsOut _ _) = "valbindsout"
   <$> fmap G.unLoc <$> G.unLoc $ G.mg_alts
    $  patBind $ G.unLoc $ last $ decl2Bind h
 -}
+
+handleTuple ts = "(" ++ concatMap handleTuple' ts ++ ")"
+  where
+    handleTuple' (G.Present expr) = handleExpr $ G.unLoc expr
+    handleTuple' (G.Missing _) = ","
 
 
 getHs :: G.HsModule G.GhcPs -> Hs
@@ -222,8 +277,11 @@ oneline file = do
         res <- Ps.parseModule file
         case res of
             Left  (src, str) -> error str
-            Right (ans, pds) -> return $ handleInfo $ G.unLoc $ pds
+            Right (ans, pds) -> return $ headerComments ans ++ " " ++ myAst pds ++ " " ++ hsAst pds
         where
+            myAst = handleInfo . G.unLoc
+            hsAst = (foldr (\x y -> x ++ ";" ++ y) "") . doSmth . toDec . G.hsmodDecls . G.unLoc
+
             handleInfo :: G.HsModule G.GhcPs -> String
             handleInfo hm = let name = getModuleName hm
                                 imports = importsFromMod hm
@@ -272,3 +330,56 @@ showImportsModName h = show $ G.moduleNameString  <$> G.unLoc <$> G.ideclName <$
 
 showDecls :: G.HsModule G.GhcPs -> String
 showDecls h = undefined
+
+
+
+ctorExprPrint (G.HsVar            _) = "HsVar"
+ctorExprPrint (G.HsUnboundVar     _) = "HsUnboundVar"
+ctorExprPrint (G.HsConLikeOut     _) = "HsConLikeOut"
+ctorExprPrint (G.HsRecFld         _) = "HsRecFld"
+ctorExprPrint (G.HsOverLabel      _  _) = "HsOverLabel"
+ctorExprPrint (G.HsIPVar          _) = "HsIPVar"
+ctorExprPrint (G.HsOverLit        _ ) = "HsOverLit"
+ctorExprPrint (G.HsLit            _ ) = "HsLit"
+ctorExprPrint (G.HsLam            _ ) = "HsLam"
+ctorExprPrint (G.HsLamCase        _ ) = "HsLamCase"
+ctorExprPrint (G.HsApp            _  _ ) = "HsApp"
+ctorExprPrint (G.HsAppType        _  _ ) = "HsAppType"
+ctorExprPrint (G.HsAppTypeOut     _  _ ) = "HsAppTypeOut"
+ctorExprPrint (G.OpApp            _  _  _  _ ) = "OpApp"
+ctorExprPrint (G.NegApp          _ _ ) = "NegApp"
+ctorExprPrint (G.HsPar            _ ) = "HsPar"
+ctorExprPrint (G.SectionL         _  _  ) = "SectionL"
+ctorExprPrint (G.SectionR         _  _ ) ="SectionR"
+ctorExprPrint (G.ExplicitTuple    _ _) = "ExplicitTuple"
+ctorExprPrint (G.ExplicitSum      _ _ _  _) = "ExplicitSum"
+ctorExprPrint (G.HsCase           _  _  ) = "HsCase"
+ctorExprPrint (G.HsMultiIf        _  _) = "HsMultiIf"
+ctorExprPrint (G.HsLet            _ _) = "HsLet"
+ctorExprPrint (G.HsDo             _  _  _) = "HsDo"
+ctorExprPrint (G.ExplicitList     _  _  _) = "ExplicitList"
+ctorExprPrint (G.ExplicitPArr   _  _) = "ExplicitPArr"
+ctorExprPrint (G.RecordCon        _ _ _ _) = "RecordCon"
+ctorExprPrint (G.RecordUpd        _ _ _ _ _ _) = "RecordUpd"
+ctorExprPrint (G.ExprWithTySig    _  _ ) = "ExprWithTySig"
+ctorExprPrint (G.ExprWithTySigOut _  _  ) = "ExprWithTySigOut"
+ctorExprPrint (G.ArithSeq         _ _  _) = "ArithSeq"
+ctorExprPrint (G.PArrSeq          _ _) = "PArrSeq"
+ctorExprPrint (G.HsSCC            _ _ _) = "HsSCC"
+ctorExprPrint (G.HsCoreAnn        _ _ _) = "HsCoreAnn"
+ctorExprPrint (G.HsBracket        _) = "HsBracket"
+ctorExprPrint (G.HsRnBracketOut   _ _) = "HsRnBracketOut"
+ctorExprPrint (G.HsTcBracketOut   _  _) = "HsTcBracketOut"
+ctorExprPrint (G.HsSpliceE        _ ) = "HsSpliceE"
+ctorExprPrint (G.HsProc           _  _ ) = "HsProc"
+ctorExprPrint (G.HsStatic         _  _) = "HsStatic"
+ctorExprPrint (G.HsArrApp         _  _  _  _ _) = "HsArrApp"
+ctorExprPrint (G.HsArrForm        _  _  _) = "HsArrForm"
+ctorExprPrint (G.HsTick          _ _ ) = "HsTick"
+ctorExprPrint (G.HsBinTick        _ _ _) = "HsBinTick"
+ctorExprPrint (G.HsTickPragma     _ _ _ _) = "HsTickPragma"
+ctorExprPrint (G.EWildPat        ) = "EWildPat"
+ctorExprPrint (G.EAsPat           _ _ ) = "EAsPat"
+ctorExprPrint (G.EViewPat         _ _ ) = "EViewPat"
+ctorExprPrint (G.ELazyPat         _  ) = "ELazyPat"
+ctorExprPrint (G.HsWrap           _ _) = "HsWrap"
