@@ -1,6 +1,15 @@
 module Main where
 
-import Lib
+import System.Environment
+
+import TestParser
 
 main :: IO ()
-main = someFunc
+main =
+  do
+     s <- getArgs
+     if null s
+         then
+            putStrLn "error: no input file."
+         else
+            oneline (head s) >>= putStr
