@@ -8,3 +8,9 @@ Trees-That-Grow Haskell Parser
 * Implement parser of simple subset of Haskell.
 * ...
 
+
+# Build'n'Run
+
+To build, type  `stack build`.
+
+To run, type `stack exec ftw-exe file.hs`.
