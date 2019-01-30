@@ -27,7 +27,11 @@ source-repository head
 
 library
   exposed-modules:
-      TestParser
+      Lib
+      , TestParser
+      , SimpleAST
+      , ASTParser
+      , OneLinePrinter
   other-modules:
       Paths_Formatter_That_Work
   hs-source-dirs:
