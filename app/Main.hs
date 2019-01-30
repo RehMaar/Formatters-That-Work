@@ -2,7 +2,7 @@ module Main where
 
 import System.Environment
 
-import TestParser
+handle file = error "not implemented"
 
 main :: IO ()
 main =
@@ -12,4 +12,4 @@ main =
          then
             putStrLn "error: no input file."
          else
-            oneline (head s) >>= putStr
+            handle (head s) >>= putStr
