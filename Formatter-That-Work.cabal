@@ -33,6 +33,7 @@ library
       , ASTParser
       , OneLinePrinter
       , TtgAST
+      , SimpleTtgAST
   other-modules:
       Paths_Formatter_That_Work
   hs-source-dirs:
