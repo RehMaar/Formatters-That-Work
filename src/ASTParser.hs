@@ -22,7 +22,8 @@ import qualified FastString as FS
 
 import Data.List
 
-import SimpleAST
+--import SimpleAST
+import SimpleTtgAST
 
 parseExpr file =
   do
