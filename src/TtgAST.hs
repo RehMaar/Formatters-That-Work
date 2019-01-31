@@ -6,8 +6,7 @@
 
 module TtgAST where
 
-
-    
+ 
 data PlaceHolder
 
 {-
@@ -38,7 +37,9 @@ data Sig idx = Type [Name] Type deriving Show
 type family XSig idx
 type family XTypeSig idx
 
-data SigX idx = Type (XTypeSig idx) [Name] (TypeX idx) | SigX (XSig idx)
+data SigX idx
+  = TypeSigX (XTypeSig idx) [Name] (TypeX idx)
+  | SigX (XSig idx)
 
 {-
 data AppType = AppInfix Name
@@ -48,10 +49,10 @@ data AppType = AppInfix Name
 
 type family XAppType idx
 type family XAppPrefix idx
-type family XAppIndix idx
+type family XAppInfix idx
 
 data AppTypeX idx
-  = AppInfixX (XAppIndix idx) Name
+  = AppInfixX (XAppInfix idx) Name
   | AppPrefixX (XAppPrefix idx) (TypeX idx)
   | AppTypeX (XAppType idx)
 
@@ -230,7 +231,7 @@ type family XOLString idx
 
 data OverLiteralsX idx
   = OverLitIntegerX (XOLInterger idx) Integer
-  | OverLitFractionaX (XOLFractional idx) Rational
+  | OverLitFractionalX (XOLFractional idx) Rational
   | OverLitStringX (XOLString idx) String
   | OverLiteralsX (XOverLiterals idx)
 
