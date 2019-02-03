@@ -2,7 +2,16 @@ module Main where
 
 import System.Environment
 
-handle file = error "not implemented"
+import CommonASTParser
+import TtgGarden
+import OneLinePrinter
+
+handle file =
+  do
+    res <- parseAST file
+    case res of
+      Left str -> error str
+      Right ast -> return $ oneline $ toSimpl ast
 
 main :: IO ()
 main =
