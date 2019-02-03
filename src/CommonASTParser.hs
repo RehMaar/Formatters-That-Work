@@ -63,16 +63,13 @@ getModuleName ans h = f <$> G.hsmodName h
 getFunBindIdName ans = Name <$> (handleFunBindId . G.unLoc) <*> getSrcInfo ans
 
 -- Imports
-getImports :: EP.Anns -> G.Located (G.ImportDecl a) -> Import
 getImports ans h =
   let hl = G.unLoc h
       name        = Name (G.moduleNameString $ G.unLoc $ G.ideclName hl) (getSrcInfo ans $ G.ideclName hl)
       isQuilified = G.ideclQualified hl
       alias       = (Name <$> (G.moduleNameString <$> G.unLoc) <*> getSrcInfo ans) <$> (G.ideclAs hl)
-      srcinfo     = G.getLoc h
-  in  Import name isQuilified alias
+  in  Import name isQuilified alias (getSrcInfo ans h)
 
-importsFromMod :: EP.Anns -> G.HsModule name -> [Import]
 importsFromMod ans h = getImports ans <$> {-G.unLoc <$>-} G.hsmodImports h
 
 matchPatSI ans = matchPat ans <$> G.unLoc <*> getSrcInfo ans
@@ -148,7 +145,7 @@ matchFunBind ans (G.FunBind id match _ _ _) = FunBind
   (matchMatchGroup match)
   (getSrcInfo ans id)
  where
-  matchMatchGroup (G.MG alts _ _ _) = (matchMatch . G.unLoc) <$> (G.unLoc alts)
+  matchMatchGroup (G.MG alts _ _ _) = (matchMatch <$> G.unLoc <*> getSrcInfo ans) <$> (G.unLoc alts)
   matchMatch (G.Match ctx pats grhs) =
     let argsp   = matchPatSI ans <$> pats
         exprss  = (getExprs ans . G.unLoc) <$> (dectrGRHSSExprs grhs)
@@ -189,7 +186,7 @@ matchTyp ans (G.HsTupleTy _ tps) = error "Turple in types!"
 matchTyp ans (G.HsListTy tp    ) = TyList $ matchTypSI ans tp
 matchTyp _ _                   = error "unknown type"
 
-matchSigBind ans (G.TypeSig id thing) = Type (names id) (sigs thing)
+matchSigBind ans (G.TypeSig id thing) = TypeSig (names id) (sigs thing)
  where
   names = fmap (getFunBindIdName ans)
   sigs (G.HsWC _ (G.HsIB _ b _)) = matchTypSI ans b

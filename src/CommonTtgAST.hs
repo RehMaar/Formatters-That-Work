@@ -10,15 +10,11 @@ import qualified SrcLoc as Out
 import qualified Language.Haskell.GHC.ExactPrint as Out
 
 import TtgAST
-
+import SrcInfo
 
 data ComID
 
 -- Extention: Common definition for source code info.
-
-type family XSrcInfoAnn idx
-type family XSrcInfoLoc idx
-data SrcInfoX idx = SrcInfoX (XSrcInfoAnn idx) (XSrcInfoLoc idx)
 
 type SrcInfo = SrcInfoX ComID
 type instance XSrcInfoAnn ComID = Maybe Out.Annotation
@@ -47,10 +43,10 @@ pattern Name s = NameX () s
 -- IMPORT
 
 type Import = ImportX ComID
-type instance XImportCtr ComID = ()
+type instance XImportCtr ComID = Maybe SrcInfo
 
-pattern Import :: Name -> Bool -> Maybe Name -> Import
-pattern Import s q as = ImportX () s q as
+pattern Import :: Name -> Bool -> Maybe Name -> Maybe SrcInfo -> Import
+pattern Import s q as msi = ImportX msi s q as
 
 -- SIG
 
@@ -58,8 +54,8 @@ type Sig = SigX ComID
 type instance XTypeSig ComID = ()
 type instance XSig ComID = ()
 
-pattern Type :: [Name] -> Type -> Sig
-pattern Type ns t = TypeSigX () ns t
+pattern TypeSig :: [Name] -> Type -> Sig
+pattern TypeSig ns t = TypeSigX () ns t
 
 -- APP TYPE
 
@@ -146,10 +142,10 @@ pattern WildPat msi = WildPatX msi
 
 type Match = MatchX ComID
 type instance XMatch ComID = ()
-type instance XMatchCtr ComID = ()
+type instance XMatchCtr ComID = Maybe SrcInfo
 
-pattern Match :: [Pat] -> [[Stmt]] -> [Expr] -> LocalBind -> Match
-pattern Match ps sss es lb = MatchX () ps sss es lb
+pattern Match :: [Pat] -> [[Stmt]] -> [Expr] -> LocalBind -> Maybe SrcInfo -> Match
+pattern Match ps sss es lb msi = MatchX msi ps sss es lb
 
 -- LOCAL BIND
 
