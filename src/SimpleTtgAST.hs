@@ -56,8 +56,8 @@ type Sig = SigX UD
 type instance XTypeSig UD = ()
 type instance XSig UD = ()
 
-pattern Type :: [Name] -> Type -> Sig
-pattern Type ns t = TypeSigX () ns t
+pattern TypeSig :: [Name] -> Type -> Sig
+pattern TypeSig ns t = TypeSigX () ns t
 
 
 -- APP TYPE
