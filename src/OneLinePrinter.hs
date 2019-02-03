@@ -83,4 +83,4 @@ printType (TyApp t1 t2) = (printType t1) ++ " " ++ (printType t2)
 printType (TyFun t1 t2) = (printType t1) ++ " -> " ++ (printType t2)
 printType (TyList t1) = "[" ++ (printType t1) ++ "]"
 
-printSig (Type names tp) = (unwords ((\(Name n) -> n) <$> names)) ++ " :: " ++ (printType tp) ++ ";"
+printSig (TypeSig names tp) = (unwords ((\(Name n) -> n) <$> names)) ++ " :: " ++ (printType tp) ++ ";"
