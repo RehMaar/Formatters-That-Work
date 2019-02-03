@@ -2,18 +2,18 @@ module OneLinePrinter where
 
 import Data.List
 
-import SimpleAST
+import SimpleTtgAST
 
 oneline :: Hs -> String
 oneline (Hs name imps decls) = printModuleName name ++ printImports imps ++ (unwords $ printDecl <$> decls)
 
 printModuleName Nothing = ""
-printModuleName (Just n) = "module " ++ n ++ " where "
+printModuleName (Just (Name n)) = "module " ++ n ++ " where "
 
 printImports = handleImports
   where
       handleImports [] = ""
-      handleImports ((Import name qual as):imps) =
+      handleImports ((Import (Name name) qual as):imps) =
         "import "
           ++ handleImpQual qual
           ++ name
@@ -25,14 +25,12 @@ printImports = handleImports
       handleImpQual False = ""
 
       handleAs Nothing      = ""
-      handleAs (Just alias) = " as " ++ alias
-
-
+      handleAs (Just (Name alias)) = " as " ++ alias
 
 printDecl (ValDecl bind) = printBind bind
 printDecl (SigDecl s) = printSig s
 
-printBind (FunBind name matches) =
+printBind (FunBind (Name name) matches) =
   intercalate "; " (printM <$> matches) ++ ";"
   where
     printM (Match args [[]] exprs locs) =
@@ -42,7 +40,7 @@ printBind (FunBind name matches) =
 
     printArgs [] = ""
     printArgs (a:args) = printArg a ++ " " ++ printArgs args
-    printArg (VarPat n) = n
+    printArg (VarPat (Name n)) = n
     printArg (ParPat pat) = "( " ++ printArg pat ++ " )"
     printArg (NPat l) = printOverLit l
     printArg (ConstPat n det) = error "wtf"
@@ -53,7 +51,7 @@ printBind (FunBind name matches) =
     ifStmts (s:st) (e:ex) = " | " ++ (printStmt s) ++
                             " = " ++ (printExpr e) ++ ";" ++ ifStmts st ex
 
-    printExpr (Var n) = n
+    printExpr (Var (Name n)) = n
     printExpr (OverLit l) = printOverLit l
     printExpr (Lit l) = printLit l
     printExpr (Lam m) = error "printExpr: lam"
@@ -73,19 +71,16 @@ printBind (FunBind name matches) =
     printLocalBinds EmptyLocalBind = ""
     printLocalBinds (ValLocalBind binds sigs) = " where " ++ unwords (printSig <$> sigs) ++ " " ++  unwords (printBind <$> binds)
 
-
     printStmt (BodyStmt expr) = printExpr expr
     printStmt _ = "stmt"
 
-printBind OtherBind = error "OtherBind!"
-
-printType (TyVar n) = n
+printType (TyVar (Name n)) = n
 printType (TyApps apt) = unwords $ printAppType <$> apt
   where
     printAppType (AppPrefix t) = printType t
-    printAppType (AppInfix t) = t
+    printAppType (AppInfix (Name t)) = t
 printType (TyApp t1 t2) = (printType t1) ++ " " ++ (printType t2)
 printType (TyFun t1 t2) = (printType t1) ++ " -> " ++ (printType t2)
 printType (TyList t1) = "[" ++ (printType t1) ++ "]"
 
-printSig (Type names tp) = (unwords names) ++ " :: " ++ (printType tp) ++ ";"
+printSig (Type names tp) = (unwords ((\(Name n) -> n) <$> names)) ++ " :: " ++ (printType tp) ++ ";"

@@ -8,7 +8,6 @@ module SimpleTtgAST where
 
 import TtgAST
 
-
 {-
 -- EXAMPLE
 type family XTest idx
@@ -35,13 +34,20 @@ instance Show Test where
 
 data UD
 
+-- Name
+
+type Name = NameX UD
+type instance XName UD = ()
+
+pattern Name :: String -> Name
+pattern Name s = NameX () s
+
 -- IMPORT
 
 type Import = ImportX UD
-type instance XImport UD = ()
 type instance XImportCtr UD = ()
 
-pattern Import :: String -> Bool -> Maybe String -> Import
+pattern Import :: Name -> Bool -> Maybe Name -> Import
 pattern Import s q as = ImportX () s q as
 
 -- SIG
@@ -164,7 +170,7 @@ type Bind = BindX UD
 type instance XBind UD = ()
 type instance XFunBind UD = ()
 
-pattern FunBind :: String -> [Match] -> Bind
+pattern FunBind :: Name -> [Match] -> Bind
 pattern FunBind s ms = FunBindX () s ms
 
 -- STMT
@@ -280,9 +286,10 @@ pattern SigDecl s = SigDeclX () s
 type Hs = HsX UD
 type instance XHs UD = ()
 
-pattern Hs :: Maybe String -> [Import] -> [Decls] -> Hs
+pattern Hs :: Maybe Name -> [Import] -> [Decls] -> Hs
 pattern Hs n i d = HsX () n i d
 
+deriving instance Show Name
 deriving instance Show AppType
 deriving instance Show Type
 deriving instance Show Sig
