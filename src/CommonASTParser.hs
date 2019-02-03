@@ -34,8 +34,14 @@ expr file = do
   res <- EP.parseModule file
   case res of
     Left  (src, str) -> error str
-    --Right (ans, pds) -> return $ show $ getAst $ G.unLoc pds
     Right (ans, pds) -> return $ show $ getAst ans pds
+
+parseAST file =
+  do
+    res <- EP.parseModule file
+    return $ case res of
+      Left  (src, str) -> Left str
+      Right (ans, pds) -> Right $ getAst ans pds
 
 getAst :: EP.Anns -> G.ParsedSource -> Hs
 getAst ans = f <$> G.unLoc <*> getSrcInfo ans
@@ -46,7 +52,6 @@ getDecls :: EP.Anns -> G.HsModule G.GhcPs -> [Decls]
 getDecls ans hm = f <$> (G.hsmodDecls hm)
   where
     f = matchDecls ans <$> G.unLoc <*> getSrcInfo ans
-    --f = matchDecls . G.unLoc -- <*> getSrcInfo
 
 -- Module name
 --getModuleName :: G.HsModule G.GhcPs -> Maybe Name
