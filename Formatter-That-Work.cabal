@@ -27,11 +27,9 @@ source-repository head
 
 library
   exposed-modules:
-      Lib
+      TtgGarden
       , CommonASTParser
       , CommonTtgAST
-      , SimpleAST
-      , ASTParser
       , OneLinePrinter
       , TtgAST
       , SimpleTtgAST
