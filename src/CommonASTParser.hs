@@ -41,10 +41,8 @@ getAst pds = f (G.unLoc pds) $ getSrcInfo pds
 getDecls :: G.HsModule G.GhcPs -> [Decls]
 getDecls hm = f <$> (G.hsmodDecls hm)
   where
-    --f ld = matchDecls (G.unLoc ld) (G.getLoc ld)
-    f = matchDecls . G.unLoc -- <*> getSrcInfo
-    --getSrcInfo a = SrcInfo Nothing (G.getLoc a)
-
+    f = matchDecls <$> G.unLoc <*> getSrcInfo
+    --f = matchDecls . G.unLoc -- <*> getSrcInfo
 
 -- Module name
 --getModuleName :: G.HsModule G.GhcPs -> Maybe Name
@@ -68,24 +66,26 @@ getImports h =
 importsFromMod :: G.HsModule name -> [Import]
 importsFromMod h = getImports <$> {-G.unLoc <$>-} G.hsmodImports h
 
+getSrcInfo = Just . SrcInfo Nothing . G.getLoc
 
-matchPat :: G.Pat G.GhcPs -> Pat
+matchPatSI = matchPat <$> G.unLoc <*> getSrcInfo
+
+matchPat :: G.Pat G.GhcPs -> Maybe SrcInfo -> Pat
 matchPat (G.WildPat G.PlaceHolder) = WildPat
 matchPat (G.VarPat  name         ) = VarPat $ getFunBindIdName name
-matchPat (G.ConPatIn name det    ) = ConstPat (getFunBindIdName name)
-                                              (matchDetails det)
+matchPat (G.ConPatIn name det    ) = ConstPat (getFunBindIdName name) (matchDetails det)
   where
-    -- TODO: wtf
-    matchDetails det = PrefixConPat []
+    matchDetails (G.PrefixCon args) = PrefixConPat (matchPatSI <$> args)
+    matchDetails (G.InfixCon a1 a2) = InfixConPat (matchPatSI a1) (matchPatSI a2)
 
 matchPat (G.NPat lit _ _ _) = NPat $ matchOverLit $ G.unLoc lit
 matchPat (G.ParPat pat    ) = ParPat $ error "ParPat"
 matchPat _                  = error "unknown pattern"
 
 -- ParStmt -- for list compreh
-matchStmt :: G.ExprStmt G.GhcPs -> Stmt
+matchStmt :: G.ExprStmt G.GhcPs -> Maybe SrcInfo -> Stmt
 matchStmt (G.LetStmt bind       ) = LetStmt $ matchLocalFunBind $ G.unLoc bind
-matchStmt (G.BodyStmt body _ _ _) = BodyStmt $ matchExpr $ G.unLoc body
+matchStmt (G.BodyStmt body _ _ _) = BodyStmt $ matchExprSI body
 matchStmt (G.BindStmt pat body _ _ _) =
   BindStmt (error "BindStmt 1") (error "BindStmt 2")
 matchStmt _ = error "unknown statement"
@@ -102,29 +102,30 @@ matchOverLit (G.OverLit val _ _ _) = handleOL val
   handleOL (G.HsFractional l) = OverLitFractional $ handleFrac l
   handleOL (G.HsIsString t s) = OverLitString $ FS.unpackFS s
 
-  handleInt (G.IL text _ val) = val
-  handleFrac (G.FL text _ val) = val
+  handleInt (G.IL _ _ val) = val
+  handleFrac (G.FL _ _ val) = val
 
-matchExpr :: G.HsExpr G.GhcPs -> Expr
-matchExpr (G.HsVar     name) = Var $ getFunBindIdName name
-matchExpr (G.HsLit     lit ) = Lit $ matchLit lit
-matchExpr (G.HsOverLit name) = OverLit $ matchOverLit name
+matchExprSI :: G.LHsExpr G.GhcPs -> Expr
+matchExprSI = matchExpr <$> G.unLoc <*> getSrcInfo
+
+matchExpr :: G.HsExpr G.GhcPs -> Maybe SrcInfo -> Expr
+matchExpr (G.HsVar     name) = Var (getFunBindIdName name)
+matchExpr (G.HsLit     lit ) = Lit (matchLit lit)
+matchExpr (G.HsOverLit name) = OverLit (matchOverLit name)
 matchExpr (G.HsApp expr1 expr2) =
-  App (matchExpr $ G.unLoc expr1) (matchExpr $ G.unLoc expr2)
-matchExpr (G.OpApp le op _ re) = OpApp (matchExpr $ G.unLoc le)
-                                       (matchExpr $ G.unLoc op)
-                                       (matchExpr $ G.unLoc re)
-matchExpr (G.HsIf _ ife thene elsee) = If (matchExpr $ G.unLoc ife)
-                                          (matchExpr $ G.unLoc thene)
-                                          (matchExpr $ G.unLoc elsee)
+  App (matchExprSI expr1)
+      (matchExprSI expr2)
+matchExpr (G.OpApp le op _ re) = OpApp (matchExprSI le)
+                                       (matchExprSI op)
+                                       (matchExprSI re)
+matchExpr (G.HsIf _ ife thene elsee) = If (matchExprSI ife)
+                                          (matchExprSI thene)
+                                          (matchExprSI elsee)
 matchExpr (G.HsLet locs expr) =
-  Let (matchLocalFunBind $ G.unLoc locs) (matchExpr $ G.unLoc expr)
+  Let (matchLocalFunBind $ G.unLoc locs) (matchExprSI expr)
 matchExpr (G.ExprWithTySig expr typ) =
-  ExprWithType (matchExpr $ G.unLoc expr) (matchSigWcType typ)
-matchExpr g = error $ "unsupported " ++ ctorExprPrint g
-
---matchSigWcType :: SOLONGTYPE -> Type
-matchSigWcType (G.HsWC _ (G.HsIB _ t _)) = matchTyp $ G.unLoc t
+  ExprWithType (matchExprSI expr) (matchSigWcType typ)
+matchExpr g = \_ -> error $ "unsupported " ++ ctorExprPrint g
 
 matchLocalFunBind (G.HsValBinds (G.ValBindsIn binds sigs)) =
   let types = (matchSigBind . G.unLoc) <$> sigs
@@ -140,10 +141,11 @@ matchLocalFunBind _                 = error "unsupported LocalBind ctor!"
 matchFunBind (G.FunBind id match _ _ _) = FunBind
   (getFunBindIdName id)
   (matchMatchGroup match)
+  (getSrcInfo id)
  where
   matchMatchGroup (G.MG alts _ _ _) = (matchMatch . G.unLoc) <$> (G.unLoc alts)
   matchMatch (G.Match ctx pats grhs) =
-    let argsp   = (matchPat . G.unLoc) <$> pats
+    let argsp   = matchPatSI <$> pats
         exprss  = (getExprs . G.unLoc) <$> (dectrGRHSSExprs grhs)
         stmts   = (getStmts . G.unLoc) <$> (dectrGRHSSExprs grhs)
         localsb = getLocals $ G.unLoc (dectrGRHSSLocals grhs)
@@ -151,39 +153,43 @@ matchFunBind (G.FunBind id match _ _ _) = FunBind
    where
     dectrGRHSSExprs (G.GRHSs bod loc) = bod
     dectrGRHSSLocals (G.GRHSs bod loc) = loc
-    getExprs (G.GRHS stmts body) = matchExpr $ G.unLoc body
+    getExprs (G.GRHS stmts body) = matchExprSI body
     getStmts (G.GRHS stmts body) = getStmts' stmts
 
     getLocals = matchLocalFunBind
 
     getStmts' []     = [] --error "Empty"
-    getStmts' (e:[]) = [matchStmt $ G.unLoc e]
-    getStmts' (e:es) = error "Not only one!"
+    getStmts' (e:[]) = [matchStmt (G.unLoc e) (getSrcInfo e)]
+    getStmts' (e:es) = error "I'm not the only one!"
 matchFunBind _ = error "Other sig"
 
-matchTyp :: G.HsType G.GhcPs -> Type
-matchTyp (G.HsTyVar _ l) = TyVar $ getFunBindIdName l
-matchTyp (G.HsAppsTy at) = TyApps $ (apptyp . G.unLoc) <$> at
- where
-  apptyp (G.HsAppInfix  l) = AppInfix $ getFunBindIdName l
-  apptyp (G.HsAppPrefix t) = AppPrefix $ matchTyp $ G.unLoc t
-matchTyp (G.HsAppTy t1 t2) =
-  TyApp (matchTyp $ G.unLoc t1) (matchTyp $ G.unLoc t2)
-matchTyp (G.HsFunTy t1 t2) =
-  TyFun (matchTyp $ G.unLoc t1) (matchTyp $ G.unLoc t2)
-matchTyp (G.HsTupleTy _ tps) = error "Turple in types!"
-matchTyp (G.HsListTy tp    ) = TyList $ matchTyp $ G.unLoc tp
-matchTyp _                   = error "unknown type"
+--matchSigWcType :: SOLONGTYPE -> Type
+matchSigWcType (G.HsWC _ (G.HsIB _ t _)) = matchTypSI t
 
-getSrcInfo = Just . SrcInfo Nothing . G.getLoc
+matchTypSI = matchTyp <$> G.unLoc <*> getSrcInfo
+
+matchTyp :: G.HsType G.GhcPs -> Maybe SrcInfo -> Type
+matchTyp (G.HsTyVar _ l) = TyVar $ getFunBindIdName l
+matchTyp (G.HsAppsTy at) = TyApps $ appTypSI <$> at
+ where
+  appTypSI = apptyp <$> G.unLoc <*> getSrcInfo
+  apptyp (G.HsAppInfix  l) = AppInfix $ getFunBindIdName l
+  apptyp (G.HsAppPrefix t) = AppPrefix $ matchTypSI t
+matchTyp (G.HsAppTy t1 t2) =
+  TyApp (matchTypSI t1) (matchTypSI t2)
+matchTyp (G.HsFunTy t1 t2) =
+  TyFun (matchTypSI t1) (matchTypSI t2)
+matchTyp (G.HsTupleTy _ tps) = error "Turple in types!"
+matchTyp (G.HsListTy tp    ) = TyList $ matchTypSI tp
+matchTyp _                   = error "unknown type"
 
 matchSigBind (G.TypeSig id thing) = Type (names id) (sigs thing)
  where
   names = fmap getFunBindIdName
-  sigs (G.HsWC _ (G.HsIB _ b _)) = matchTyp $ G.unLoc b
+  sigs (G.HsWC _ (G.HsIB _ b _)) = matchTypSI b
 matchSigBind _ = error "unknown sig"
 
-matchDecls :: G.HsDecl G.GhcPs -> Decls
+matchDecls :: G.HsDecl G.GhcPs -> Maybe SrcInfo -> Decls
 matchDecls (G.ValD a) = ValDecl $ matchFunBind a
 matchDecls (G.SigD a) = SigDecl $ matchSigBind a
 matchDecls _          = error "unknown decl "
