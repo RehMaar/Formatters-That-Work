@@ -64,50 +64,49 @@ pattern Type ns t = TypeSigX () ns t
 -- APP TYPE
 
 type AppType = AppTypeX ComID
-type instance XAppType ComID = ()
-type instance XAppPrefix ComID = ()
-type instance XAppInfix ComID = ()
+type instance XAppType   ComID = ()
+type instance XAppPrefix ComID = Maybe SrcInfo
+type instance XAppInfix  ComID = Maybe SrcInfo
 
-pattern AppPrefix :: Type  -> AppType
-pattern AppPrefix n = AppPrefixX () n
+pattern AppPrefix :: Type  -> Maybe SrcInfo -> AppType
+pattern AppPrefix n msi = AppPrefixX msi n
 
-pattern AppInfix :: Name -> AppType
-pattern AppInfix t = AppInfixX () t
+pattern AppInfix :: Name -> Maybe SrcInfo -> AppType
+pattern AppInfix t msi = AppInfixX msi t
 
 -- TYPE
 
 type Type = TypeX ComID
-type instance XType ComID = ()
-type instance XTyVar ComID = ()
-type instance XTyApps ComID = ()
-type instance XTyApp ComID = ()
-type instance XTyFun ComID = ()
-type instance XTyTuple ComID = ()
-type instance XTyList ComID = ()
+type instance XType    ComID = ()
+type instance XTyVar   ComID = Maybe SrcInfo
+type instance XTyApps  ComID = Maybe SrcInfo
+type instance XTyApp   ComID = Maybe SrcInfo
+type instance XTyFun   ComID = Maybe SrcInfo
+type instance XTyTuple ComID = Maybe SrcInfo
+type instance XTyList  ComID = Maybe SrcInfo
 
-pattern TyVar :: Name -> Type
-pattern TyVar n = TyVarX () n
+pattern TyVar :: Name -> Maybe SrcInfo -> Type
+pattern TyVar n msi = TyVarX msi n
 
-pattern TyApps :: [AppType] -> Type
-pattern TyApps aps = TyAppsX () aps
+pattern TyApps :: [AppType] -> Maybe SrcInfo -> Type
+pattern TyApps aps msi = TyAppsX msi aps
 
-pattern TyApp :: Type -> Type -> Type
-pattern TyApp t1 t2 = TyAppX () t1 t2
+pattern TyApp :: Type -> Type -> Maybe SrcInfo -> Type
+pattern TyApp t1 t2 msi = TyAppX msi t1 t2
 
-pattern TyFun :: Type -> Type -> Type
-pattern TyFun t1 t2 = TyFunX () t1 t2
+pattern TyFun :: Type -> Type -> Maybe SrcInfo -> Type
+pattern TyFun t1 t2 msi = TyFunX msi t1 t2
 
-pattern TyTuple :: [Type] -> Type
-pattern TyTuple ts = TyTupleX () ts
+pattern TyTuple :: [Type] -> Maybe SrcInfo -> Type
+pattern TyTuple ts msi = TyTupleX msi ts
 
-pattern TyList :: Type -> Type
-pattern TyList ts = TyListX () ts
+pattern TyList :: Type -> Maybe SrcInfo -> Type
+pattern TyList ts msi = TyListX msi ts
 
 
 -- CONST PAT DETAIL
 
 type ConstPatDetail = ConstPatDetailX ComID
-type instance XConstPat ComID = ()
 type instance XConstPD ComID = ()
 type instance XPrefixCP ComID = ()
 type instance XInfixCP ComID = ()
@@ -122,26 +121,26 @@ pattern InfixConPat p1 p2 = InfixConPatX () p1 p2
 
 type Pat = PatX ComID
 type instance XPat ComID = ()
-type instance XVarPat ComID = ()
-type instance XParPat ComID = ()
-type instance XNPat ComID = ()
-type instance XConstPat ComID = ()
-type instance XWildPat ComID = ()
+type instance XVarPat ComID   = Maybe SrcInfo
+type instance XParPat ComID   = Maybe SrcInfo
+type instance XNPat ComID     = Maybe SrcInfo
+type instance XConstPat ComID = Maybe SrcInfo
+type instance XWildPat ComID  = Maybe SrcInfo
 
-pattern VarPat :: Name -> Pat
-pattern VarPat n = VarPatX () n
+pattern VarPat :: Name -> Maybe SrcInfo -> Pat
+pattern VarPat n msi = VarPatX msi n
 
-pattern ParPat :: Pat -> Pat
-pattern ParPat p = ParPatX () p
+pattern ParPat :: Pat -> Maybe SrcInfo -> Pat
+pattern ParPat p msi = ParPatX msi p
 
-pattern NPat :: OverLiterals -> Pat
-pattern NPat ol = NPatX () ol
+pattern NPat :: OverLiterals -> Maybe SrcInfo -> Pat
+pattern NPat ol msi = NPatX msi ol
 
-pattern ConstPat :: Name -> ConstPatDetail -> Pat
-pattern ConstPat n cpd = ConstPatX () n cpd
+pattern ConstPat :: Name -> ConstPatDetail -> Maybe SrcInfo -> Pat
+pattern ConstPat n cpd msi = ConstPatX msi n cpd
 
-pattern WildPat :: Pat
-pattern WildPat = WildPatX ()
+pattern WildPat :: Maybe SrcInfo -> Pat
+pattern WildPat msi = WildPatX msi
 
 -- MATCH
 
@@ -169,27 +168,27 @@ pattern EmptyLocalBind = EmptyLocalBindX ()
 
 type Bind = BindX ComID
 type instance XBind ComID = ()
-type instance XFunBind ComID = ()
+type instance XFunBind ComID = Maybe SrcInfo
 
-pattern FunBind :: Name -> [Match] -> Bind
-pattern FunBind s ms = FunBindX () s ms
+pattern FunBind :: Name -> [Match] -> Maybe SrcInfo -> Bind
+pattern FunBind s ms msi = FunBindX msi s ms
 
 -- STMT
 
 type Stmt = StmtX ComID
 type instance XStmt ComID = ()
-type instance XBindStmt ComID = ()
-type instance XLetStmt ComID = ()
-type instance XBodyStmt ComID = ()
+type instance XBindStmt ComID = Maybe SrcInfo
+type instance XLetStmt ComID  = Maybe SrcInfo
+type instance XBodyStmt ComID = Maybe SrcInfo
 
-pattern BindStmt :: Pat -> Expr -> Stmt
-pattern BindStmt p e = BindStmtX () p e
+pattern BindStmt :: Pat -> Expr -> Maybe SrcInfo -> Stmt
+pattern BindStmt p e msi = BindStmtX msi p e
 
-pattern LetStmt :: LocalBind -> Stmt
-pattern LetStmt lb = LetStmtX () lb
+pattern LetStmt :: LocalBind -> Maybe SrcInfo -> Stmt
+pattern LetStmt lb msi = LetStmtX msi lb
 
-pattern BodyStmt :: Expr -> Stmt
-pattern BodyStmt e = BodyStmtX () e
+pattern BodyStmt :: Expr -> Maybe SrcInfo -> Stmt
+pattern BodyStmt e msi = BodyStmtX msi e
 
 -- LITERALS
 type Literals = LiteralsX ComID
@@ -224,63 +223,63 @@ pattern OverLitString s = OverLitStringX () s
 
 type Expr = ExprX ComID
 type instance XExpr         ComID = ()
-type instance XVar          ComID = ()
-type instance XOverLit      ComID = ()
-type instance XLit          ComID = ()
-type instance XLam          ComID = ()
-type instance XApp          ComID = ()
-type instance XOpApp        ComID = ()
-type instance XLet          ComID = ()
-type instance XIf           ComID = ()
-type instance XDo           ComID = ()
-type instance XCase         ComID = ()
-type instance XExprWithType ComID = ()
+type instance XVar          ComID = Maybe SrcInfo
+type instance XOverLit      ComID = Maybe SrcInfo
+type instance XLit          ComID = Maybe SrcInfo
+type instance XLam          ComID = Maybe SrcInfo
+type instance XApp          ComID = Maybe SrcInfo
+type instance XOpApp        ComID = Maybe SrcInfo
+type instance XLet          ComID = Maybe SrcInfo
+type instance XIf           ComID = Maybe SrcInfo
+type instance XDo           ComID = Maybe SrcInfo
+type instance XCase         ComID = Maybe SrcInfo
+type instance XExprWithType ComID = Maybe SrcInfo
 
-pattern Var :: Name -> Expr
-pattern Var n = VarX () n
+pattern Var :: Name -> Maybe SrcInfo -> Expr
+pattern Var n msi = VarX msi n
 
-pattern OverLit :: OverLiterals -> Expr
-pattern OverLit ol = OverLitX () ol
+pattern OverLit :: OverLiterals -> Maybe SrcInfo -> Expr
+pattern OverLit ol msi = OverLitX msi ol
 
-pattern Lit :: Literals -> Expr
-pattern Lit l = LitX () l
+pattern Lit :: Literals -> Maybe SrcInfo -> Expr
+pattern Lit l msi = LitX msi l
 
-pattern Lam :: Match -> Expr
-pattern Lam m = LamX () m
+pattern Lam :: Match -> Maybe SrcInfo -> Expr
+pattern Lam m msi = LamX msi m
 
-pattern App :: Expr -> Expr -> Expr
-pattern App e1 e2 = AppX () e1 e2
+pattern App :: Expr -> Expr -> Maybe SrcInfo -> Expr
+pattern App e1 e2 msi = AppX msi e1 e2
 
-pattern OpApp :: Expr -> Expr -> Expr -> Expr
-pattern OpApp e1 op e2 = OpAppX () e1 op e2
+pattern OpApp :: Expr -> Expr -> Expr -> Maybe SrcInfo -> Expr
+pattern OpApp e1 op e2 msi = OpAppX msi e1 op e2
 
-pattern Let :: LocalBind -> Expr -> Expr
-pattern Let lb e = LetX () lb e
+pattern Let :: LocalBind -> Expr -> Maybe SrcInfo -> Expr
+pattern Let lb e msi = LetX msi lb e
 
-pattern If :: Expr -> Expr -> Expr -> Expr
-pattern If c t e = IfX () c t e
+pattern If :: Expr -> Expr -> Expr -> Maybe SrcInfo -> Expr
+pattern If c t e msi = IfX msi c t e
 
-pattern Do :: [Stmt] -> Expr
-pattern Do s = DoX () s
+pattern Do :: [Stmt] -> Maybe SrcInfo -> Expr
+pattern Do s msi = DoX msi s
 
-pattern Case :: Expr -> Match -> Expr
-pattern Case e m = CaseX () e m
+pattern Case :: Expr -> Match -> Maybe SrcInfo -> Expr
+pattern Case e m msi = CaseX msi e m
 
-pattern ExprWithType :: Expr -> Type -> Expr
-pattern ExprWithType e t = ExprWithTypeX () e t
+pattern ExprWithType :: Expr -> Type -> Maybe SrcInfo -> Expr
+pattern ExprWithType e t msi = ExprWithTypeX msi e t
 
 -- DECLS
 
 type Decls = DeclsX ComID
 type instance XDecl ComID = ()
-type instance XValDecl ComID = () --SrcInfo
-type instance XSigDecl ComID = () --SrcInfo
+type instance XValDecl ComID = Maybe SrcInfo
+type instance XSigDecl ComID = Maybe SrcInfo
 
-pattern ValDecl :: Bind -> Decls
-pattern ValDecl b = ValDeclX () b
+pattern ValDecl :: Bind -> Maybe SrcInfo -> Decls
+pattern ValDecl b msi = ValDeclX msi b
 
-pattern SigDecl :: Sig -> Decls
-pattern SigDecl s = SigDeclX () s
+pattern SigDecl :: Sig -> Maybe SrcInfo -> Decls
+pattern SigDecl s msi = SigDeclX msi s
 
 -- HS
 
