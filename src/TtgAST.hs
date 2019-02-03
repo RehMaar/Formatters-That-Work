@@ -6,8 +6,11 @@
 
 module TtgAST where
 
- 
+
 data PlaceHolder
+
+type family XName idx
+data NameX idx = NameX (XName idx) String
 
 {-
 data Import = Import {
@@ -17,18 +20,14 @@ data Import = Import {
 }
 -}
 
-type family XImport idx
 type family XImportCtr idx
 
 data ImportX idx
   = ImportX {
-    iExt :: XImportCtr idx,
-    iName :: String,
+    iExt       :: XImportCtr idx,
+    iName      :: NameX idx,
     iQuilified :: Bool,
-    iAs :: Maybe String }
-  | ImportX' (XImport idx)
-
-type Name = String
+    iAs        :: Maybe (NameX idx)}
 
 {-
 data Sig idx = Type [Name] Type deriving Show
@@ -38,7 +37,7 @@ type family XSig idx
 type family XTypeSig idx
 
 data SigX idx
-  = TypeSigX (XTypeSig idx) [Name] (TypeX idx)
+  = TypeSigX (XTypeSig idx) [NameX idx] (TypeX idx)
   | SigX (XSig idx)
 
 {-
@@ -52,7 +51,7 @@ type family XAppPrefix idx
 type family XAppInfix idx
 
 data AppTypeX idx
-  = AppInfixX (XAppInfix idx) Name
+  = AppInfixX (XAppInfix idx) (NameX idx)
   | AppPrefixX (XAppPrefix idx) (TypeX idx)
   | AppTypeX (XAppType idx)
 
@@ -75,7 +74,7 @@ type family XTyTuple idx
 type family XTyList idx
 
 data TypeX idx
-  = TyVarX (XTyVar idx) Name
+  = TyVarX (XTyVar idx) (NameX idx)
   | TyAppsX (XTyApps idx) [AppTypeX idx]
   | TyAppX (XTyApp idx) (TypeX idx) (TypeX idx)
   | TyFunX (XTyFun idx) (TypeX idx) (TypeX idx)
@@ -116,10 +115,10 @@ type family XConstPat idx
 type family XWildPat idx
 
 data PatX idx
-  = VarPatX (XVarPat idx) Name
+  = VarPatX (XVarPat idx) (NameX idx)
   | ParPatX (XParPat idx) (PatX idx)
   | NPatX (XNPat idx) (OverLiteralsX idx)
-  | ConstPatX (XConstPat idx) Name (ConstPatDetailX idx)
+  | ConstPatX (XConstPat idx) (NameX idx) (ConstPatDetailX idx)
   | WildPatX (XWildPat idx)
   | PatX (XPat idx)
 
@@ -182,7 +181,7 @@ type family XFunBind idx
 data BindX idx
   = FunBindX {
       fbExt :: XFunBind idx,
-      fun_name :: String,
+      fun_name :: NameX idx,
       fun_matches :: [MatchX idx] }
   | BindX (XBind idx)
 
@@ -263,7 +262,7 @@ type family XDo           idx
 type family XCase         idx
 type family XExprWithType idx
 
-data ExprX idx = VarX (XVar idx) Name
+data ExprX idx = VarX (XVar idx) (NameX idx)
   | OverLitX      (XOverLit      idx) (OverLiteralsX idx)
   | LitX          (XLit          idx) (LiteralsX idx)
   | LamX          (XLam          idx) (MatchX idx)
@@ -285,7 +284,8 @@ type family XDecl    idx
 type family XValDecl idx
 type family XSigDecl idx
 
-data DeclsX idx = ValDeclX (XValDecl idx) (BindX idx)
+data DeclsX idx
+  = ValDeclX (XValDecl idx) (BindX idx)
   | SigDeclX (XSigDecl idx) (SigX idx)
   | DeclsX (XDecl idx)
 
@@ -301,7 +301,7 @@ type family XHs idx
 
 data HsX idx = HsX {
   hsExt :: XHs idx,
-  hsModuleName :: Maybe String,
+  hsModuleName :: Maybe (NameX idx),
   hsImports :: [ImportX idx],
   hsDecls   :: [DeclsX idx]
 }
