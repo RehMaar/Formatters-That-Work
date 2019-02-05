@@ -27,12 +27,16 @@ source-repository head
 
 library
   exposed-modules:
-      TtgGarden
+      TtgAST
+      , SrcInfo
       , CommonASTParser
       , CommonTtgAST
-      , OneLinePrinter
-      , TtgAST
       , SimpleTtgAST
+      , SimpleConverter
+      , OneLineNoCommentsPrinter
+      , AnnTtgAST
+      , AnnConverter
+      , OneLinePrinter
   other-modules:
       Paths_Formatter_That_Work
   hs-source-dirs:
