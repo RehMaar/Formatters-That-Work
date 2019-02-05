@@ -1,22 +1,22 @@
 # Formatters-That-Work
-Trees-That-Grow Haskell Parser 
+Trees-That-Grow Haskell 
 
-# Plan
-* Implement parser of some simple language that uses Trees That Grow ideas.
-* See how to implement AST to hold printing info.
-* Probably, implement it for this language.
-* Implement parser of simple subset of Haskell.
-* ...
+# src/
+
+- TtgAST.hs -- определение расширяемого AST для подмножества Haskell.
+- CommonTtgAST.hs -- расширение AST, которое сохраняет метаинформацию о символах языка (положение и аннотации)
+- SrcInfo.hs -- определение типа для хранения этой информации.
+- CommonASTParser.hs -- непосредственно "парсер": берёт AST с аннотациями у Exact-Print и переводит в наше дерево.
+- SimpleTtgAST.hs -- расширение AST, которое ничего не расширяет.
+- SimpleConverter.hs -- экспортирует функцию, которая из любого расширяемого дерева даст простое дерево без расширений.
+- OneLineNoCommentsPrinter.hs -- строит строку из SimpleTtgAST для печати кода в одну строку без комментариев.
+- AnnTtgAST.hs -- расширение AST, которое сохраняет аннотации для вывода кода с комментариями.
+- AnnConverter.hs -- преобразование CommonTtgAST в AnnTtgAST.
+- OneLinePrinter.hs -- строит строку для печати кода с комментариями в одну строку (WIP).
 
 
 # Build'n'Run
 
-To build, type  `stack build`.
+Собрать исполняемый файл: `stack build`.
 
-To run, type `stack exec ftw-exe file.hs`.
-
-# Bugs
-
-
-* Operators like `(+)` has the same data contructor as literals, so it's hard to handle them separetely (both in `()` or not).
-
+Запустить: `stack exec ftw-exe file.hs`.
