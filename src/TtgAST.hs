@@ -140,17 +140,22 @@ data Match
  
 -}
 
+type family XGRHS idx
+
+data GRHSX idx
+  = GRHSX {
+    gExt :: XGRHS idx,
+    gStmts :: [StmtX idx],
+    gExpr :: ExprX idx}
+
 type family XMatch idx
-type family XMatchCtr idx
 
 data MatchX idx
   = MatchX {
-      mExt :: XMatchCtr idx,
+      mExt :: XMatch idx,
       mArgs :: [PatX idx],
-      mStmts :: [[StmtX idx]],
-      mExprs :: [ExprX idx],
-      mLocals :: LocalBindX idx }
-  | MatchX' (XMatch idx)
+      mBody :: [GRHSX idx],
+      mLocals :: LocalBindX idx}
 
 --newtype MatchGroup = MG [Match]
 
