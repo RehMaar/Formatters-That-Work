@@ -55,6 +55,7 @@ toSimpl (HsX idx n i d) = STA.Hs (toSimplName <$> n) (toSimplImport <$> i) (toSi
     toSimplLocal (ValLocalBindX _ binds sigs) = STA.ValLocalBind (toSimplBind <$> binds) (toSimplSig <$> sigs)
     toSimplLocal (EmptyLocalBindX _)          = STA.EmptyLocalBind
 
+    toSimplExpr (VarX _ name)                 = STA.Var (toSimplName name)
     toSimplExpr (OverLitX _ ol)              = STA.OverLit (toSimplOverLit ol)
     toSimplExpr (LitX _ lit)                 = STA.Lit (toSimplLit lit)
     toSimplExpr (LamX _ match)               = STA.Lam (toSimplMatch match)
@@ -65,6 +66,7 @@ toSimpl (HsX idx n i d) = STA.Hs (toSimplName <$> n) (toSimplImport <$> i) (toSi
     toSimplExpr (DoX _ stmts)                = STA.Do (toSimplStmt <$> stmts)
     toSimplExpr (CaseX _ expr match)         = STA.Case (toSimplExpr expr) (toSimplMatch match)
     toSimplExpr (ExprWithTypeX _ expr typ)   = STA.ExprWithType (toSimplExpr expr) (toSimplType typ)
+    toSimplExpr (ParX _ expr)                = STA.Par (toSimplExpr expr)
 
     toSimplLit (LitCharX _ ch)    = STA.LitChar ch
     toSimplLit (LitStringX _ str) = STA.LitString str

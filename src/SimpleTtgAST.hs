@@ -8,30 +8,6 @@ module SimpleTtgAST where
 
 import TtgAST
 
-{-
--- EXAMPLE
-type family XTest idx
-type family XTest1 idx
-type family XTest2 idx
-
-data TestX idx = Test1X (XTest1 idx) Int | Test2X (XTest2 idx) String | TestX (XTest idx)
-
-type Test = TestX UD
-type instance XTest UD = ()
-type instance XTest1 UD = ()
-type instance XTest2 UD = ()
-
-pattern Test1 :: Int -> Test
-pattern Test1 a = Test1X () a
-
-pattern Test2 :: String -> Test
-pattern Test2 a = Test2X () a
-
-instance Show Test where
-    show (Test1 a) = "Test1 " ++ show a
-    show (Test2 a) = "Test2 " ++ a
--}
-
 data UD
 
 -- Name
@@ -241,6 +217,7 @@ type instance XIf           UD = ()
 type instance XDo           UD = ()
 type instance XCase         UD = ()
 type instance XExprWithType UD = ()
+type instance XPar          UD = ()
 
 pattern Var :: Name -> Expr
 pattern Var n = VarX () n
@@ -274,6 +251,9 @@ pattern Case e m = CaseX () e m
 
 pattern ExprWithType :: Expr -> Type -> Expr
 pattern ExprWithType e t = ExprWithTypeX () e t
+
+pattern Par :: Expr -> Expr
+pattern Par e = ParX () e
 
 -- DECLS
 

@@ -4,65 +4,59 @@
 {-# LANGUAGE FlexibleInstances, FlexibleContexts #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-module CommonTtgAST where
+module AnnTtgAST where
 
 import qualified SrcLoc as Out
 import qualified Language.Haskell.GHC.ExactPrint as Out
 
-import TtgAST
 import SrcInfo
+import TtgAST
 
-data ComID
+data AnnID
 
 -- Extention: Common definition for source code info.
 
-type SrcInfo = SrcInfoX ComID
-type instance XSrcInfoAnn ComID = Maybe Out.Annotation
-type instance XSrcInfoLoc ComID = Out.SrcSpan
+type SrcInfo = SrcInfoX AnnID
+type instance XSrcInfoAnn AnnID = Maybe Out.Annotation
+type instance XSrcInfoLoc AnnID = ()
 
-pattern SrcInfo :: Maybe Out.Annotation -> Out.SrcSpan -> SrcInfo
-pattern SrcInfo ma sl = SrcInfoX ma sl
+pattern SrcInfo :: Maybe Out.Annotation -> SrcInfo
+pattern SrcInfo ma = SrcInfoX ma ()
 
 deriving instance Show SrcInfo
 
 -- Helpers
-type Name = NameX ComID
-type instance XName ComID = Maybe SrcInfo
+type Name = NameX AnnID
+type instance XName AnnID = Maybe SrcInfo
 
 pattern Name :: String -> Maybe SrcInfo -> Name
 pattern Name s si = NameX si s
-{-
-type Name = NameX ComID
-type instance XName ComID = ()
 
-pattern Name :: String -> Name
-pattern Name s = NameX () s
--}
 -- AST Definition
 
 -- IMPORT
 
-type Import = ImportX ComID
-type instance XImportCtr ComID = Maybe SrcInfo
+type Import = ImportX AnnID
+type instance XImportCtr AnnID = Maybe SrcInfo
 
 pattern Import :: Name -> Bool -> Maybe Name -> Maybe SrcInfo -> Import
 pattern Import s q as msi = ImportX msi s q as
 
 -- SIG
 
-type Sig = SigX ComID
-type instance XTypeSig ComID = Maybe SrcInfo
-type instance XSig ComID = ()
+type Sig= SigX AnnID
+type instance XTypeSig AnnID = Maybe SrcInfo
+type instance XSig AnnID = ()
 
 pattern TypeSig :: [Name] -> Type -> Maybe SrcInfo -> Sig
-pattern TypeSig ns t msi = TypeSigX msi ns t
+pattern TypeSig  ns t msi = TypeSigX msi ns t
 
 -- APP TYPE
 
-type AppType = AppTypeX ComID
-type instance XAppType   ComID = ()
-type instance XAppPrefix ComID = Maybe SrcInfo
-type instance XAppInfix  ComID = Maybe SrcInfo
+type AppType = AppTypeX AnnID
+type instance XAppType   AnnID = ()
+type instance XAppPrefix AnnID = Maybe SrcInfo
+type instance XAppInfix  AnnID = Maybe SrcInfo
 
 pattern AppPrefix :: Type  -> Maybe SrcInfo -> AppType
 pattern AppPrefix n msi = AppPrefixX msi n
@@ -72,14 +66,14 @@ pattern AppInfix t msi = AppInfixX msi t
 
 -- TYPE
 
-type Type = TypeX ComID
-type instance XType    ComID = ()
-type instance XTyVar   ComID = Maybe SrcInfo
-type instance XTyApps  ComID = Maybe SrcInfo
-type instance XTyApp   ComID = Maybe SrcInfo
-type instance XTyFun   ComID = Maybe SrcInfo
-type instance XTyTuple ComID = Maybe SrcInfo
-type instance XTyList  ComID = Maybe SrcInfo
+type Type = TypeX AnnID
+type instance XType    AnnID = ()
+type instance XTyVar   AnnID = Maybe SrcInfo
+type instance XTyApps  AnnID = Maybe SrcInfo
+type instance XTyApp   AnnID = Maybe SrcInfo
+type instance XTyFun   AnnID = Maybe SrcInfo
+type instance XTyTuple AnnID = Maybe SrcInfo
+type instance XTyList  AnnID = Maybe SrcInfo
 
 pattern TyVar :: Name -> Maybe SrcInfo -> Type
 pattern TyVar n msi = TyVarX msi n
@@ -102,10 +96,10 @@ pattern TyList ts msi = TyListX msi ts
 
 -- CONST PAT DETAIL
 
-type ConstPatDetail = ConstPatDetailX ComID
-type instance XConstPD ComID = ()
-type instance XPrefixCP ComID = ()
-type instance XInfixCP ComID = ()
+type ConstPatDetail = ConstPatDetailX AnnID
+type instance XConstPD AnnID = ()
+type instance XPrefixCP AnnID = ()
+type instance XInfixCP AnnID = ()
 
 pattern PrefixConPat :: [Pat] -> ConstPatDetail
 pattern PrefixConPat ps = PrefixConPatX () ps
@@ -115,13 +109,13 @@ pattern InfixConPat p1 p2 = InfixConPatX () p1 p2
 
 -- PAT
 
-type Pat = PatX ComID
-type instance XPat ComID = ()
-type instance XVarPat ComID   = Maybe SrcInfo
-type instance XParPat ComID   = Maybe SrcInfo
-type instance XNPat ComID     = Maybe SrcInfo
-type instance XConstPat ComID = Maybe SrcInfo
-type instance XWildPat ComID  = Maybe SrcInfo
+type Pat = PatX AnnID
+type instance XPat AnnID = ()
+type instance XVarPat AnnID   = Maybe SrcInfo
+type instance XParPat AnnID   = Maybe SrcInfo
+type instance XNPat AnnID     = Maybe SrcInfo
+type instance XConstPat AnnID = Maybe SrcInfo
+type instance XWildPat AnnID  = Maybe SrcInfo
 
 pattern VarPat :: Name -> Maybe SrcInfo -> Pat
 pattern VarPat n msi = VarPatX msi n
@@ -138,27 +132,28 @@ pattern ConstPat n cpd msi = ConstPatX msi n cpd
 pattern WildPat :: Maybe SrcInfo -> Pat
 pattern WildPat msi = WildPatX msi
 
--- GHRS
-type GRHS = GRHSX ComID
-type instance XGRHS ComID = Maybe SrcInfo
+-- GRHS
+
+type GRHS = GRHSX AnnID
+type instance XGRHS AnnID = Maybe SrcInfo
 
 pattern GRHS :: [Stmt] -> Expr -> Maybe SrcInfo -> GRHS
-pattern GRHS s ex msi = GRHSX msi s ex
+pattern GRHS s e ms = GRHSX ms s e
 
 -- MATCH
 
-type Match = MatchX ComID
-type instance XMatch ComID = Maybe SrcInfo
+type Match = MatchX AnnID
+type instance XMatch AnnID = Maybe SrcInfo
 
 pattern Match :: [Pat] -> [GRHS] -> LocalBind -> Maybe SrcInfo -> Match
 pattern Match ps grhs lb msi = MatchX msi ps grhs lb
 
 -- LOCAL BIND
 
-type LocalBind = LocalBindX ComID
-type instance XLocalBind ComID = ()
-type instance XValLB ComID = ()
-type instance XEmptyLB ComID = ()
+type LocalBind = LocalBindX AnnID
+type instance XLocalBind AnnID = ()
+type instance XValLB AnnID = ()
+type instance XEmptyLB AnnID = ()
 
 pattern ValLocalBind :: [Bind] -> [Sig] -> LocalBind
 pattern ValLocalBind bs ss = ValLocalBindX () bs ss
@@ -168,20 +163,20 @@ pattern EmptyLocalBind = EmptyLocalBindX ()
 
 -- BIND
 
-type Bind = BindX ComID
-type instance XBind ComID = ()
-type instance XFunBind ComID = Maybe SrcInfo
+type Bind = BindX AnnID
+type instance XBind AnnID = ()
+type instance XFunBind AnnID = Maybe SrcInfo
 
 pattern FunBind :: Name -> [Match] -> Maybe SrcInfo -> Bind
 pattern FunBind s ms msi = FunBindX msi s ms
 
 -- STMT
 
-type Stmt = StmtX ComID
-type instance XStmt ComID = ()
-type instance XBindStmt ComID = Maybe SrcInfo
-type instance XLetStmt ComID  = Maybe SrcInfo
-type instance XBodyStmt ComID = Maybe SrcInfo
+type Stmt = StmtX AnnID
+type instance XStmt AnnID = ()
+type instance XBindStmt AnnID = Maybe SrcInfo
+type instance XLetStmt AnnID  = Maybe SrcInfo
+type instance XBodyStmt AnnID = Maybe SrcInfo
 
 pattern BindStmt :: Pat -> Expr -> Maybe SrcInfo -> Stmt
 pattern BindStmt p e msi = BindStmtX msi p e
@@ -193,10 +188,10 @@ pattern BodyStmt :: Expr -> Maybe SrcInfo -> Stmt
 pattern BodyStmt e msi = BodyStmtX msi e
 
 -- LITERALS
-type Literals = LiteralsX ComID
-type instance XLiterals ComID = ()
-type instance XLitChar ComID = ()
-type instance XLitString ComID = ()
+type Literals = LiteralsX AnnID
+type instance XLiterals AnnID = ()
+type instance XLitChar AnnID = ()
+type instance XLitString AnnID = ()
 
 pattern LitChar :: Char -> Literals
 pattern LitChar c = LitCharX () c
@@ -206,11 +201,11 @@ pattern LitString s = LitStringX () s
 
 -- OVERLITERALS
 
-type OverLiterals = OverLiteralsX ComID
-type instance XOverLiterals ComID = ()
-type instance XOLInterger ComID = ()
-type instance XOLFractional ComID = ()
-type instance XOLString ComID = ()
+type OverLiterals = OverLiteralsX AnnID
+type instance XOverLiterals AnnID = ()
+type instance XOLInterger   AnnID = ()
+type instance XOLFractional AnnID = ()
+type instance XOLString     AnnID = ()
 
 pattern OverLitInteger :: Integer -> OverLiterals
 pattern OverLitInteger i = OverLitIntegerX () i
@@ -223,20 +218,20 @@ pattern OverLitString s = OverLitStringX () s
 
 -- EXPR
 
-type Expr = ExprX ComID
-type instance XExpr         ComID = ()
-type instance XVar          ComID = Maybe SrcInfo
-type instance XOverLit      ComID = Maybe SrcInfo
-type instance XLit          ComID = Maybe SrcInfo
-type instance XLam          ComID = Maybe SrcInfo
-type instance XApp          ComID = Maybe SrcInfo
-type instance XOpApp        ComID = Maybe SrcInfo
-type instance XLet          ComID = Maybe SrcInfo
-type instance XIf           ComID = Maybe SrcInfo
-type instance XDo           ComID = Maybe SrcInfo
-type instance XCase         ComID = Maybe SrcInfo
-type instance XExprWithType ComID = Maybe SrcInfo
-type instance XPar          ComID = Maybe SrcInfo
+type Expr = ExprX AnnID
+type instance XExpr         AnnID = ()
+type instance XVar          AnnID = Maybe SrcInfo
+type instance XOverLit      AnnID = Maybe SrcInfo
+type instance XLit          AnnID = Maybe SrcInfo
+type instance XLam          AnnID = Maybe SrcInfo
+type instance XApp          AnnID = Maybe SrcInfo
+type instance XOpApp        AnnID = Maybe SrcInfo
+type instance XLet          AnnID = Maybe SrcInfo
+type instance XIf           AnnID = Maybe SrcInfo
+type instance XDo           AnnID = Maybe SrcInfo
+type instance XCase         AnnID = Maybe SrcInfo
+type instance XExprWithType AnnID = Maybe SrcInfo
+type instance XPar          AnnID = Maybe SrcInfo
 
 pattern Var :: Name -> Maybe SrcInfo -> Expr
 pattern Var n msi = VarX msi n
@@ -272,14 +267,14 @@ pattern ExprWithType :: Expr -> Type -> Maybe SrcInfo -> Expr
 pattern ExprWithType e t msi = ExprWithTypeX msi e t
 
 pattern Par :: Expr -> Maybe SrcInfo -> Expr
-pattern Par expr msi = ParX msi expr
+pattern Par e msi = ParX msi e
 
 -- DECLS
 
-type Decls = DeclsX ComID
-type instance XDecl ComID = ()
-type instance XValDecl ComID = Maybe SrcInfo
-type instance XSigDecl ComID = Maybe SrcInfo
+type Decls = DeclsX AnnID
+type instance XDecl AnnID = ()
+type instance XValDecl AnnID = Maybe SrcInfo
+type instance XSigDecl AnnID = Maybe SrcInfo
 
 pattern ValDecl :: Bind -> Maybe SrcInfo -> Decls
 pattern ValDecl b msi = ValDeclX msi b
@@ -289,8 +284,8 @@ pattern SigDecl s msi = SigDeclX msi s
 
 -- HS
 
-type Hs = HsX ComID
-type instance XHs ComID = Maybe SrcInfo
+type Hs = HsX AnnID
+type instance XHs AnnID = Maybe SrcInfo
 
 pattern Hs :: Maybe Name -> [Import] -> [Decls] -> Maybe SrcInfo -> Hs
 pattern Hs n i d s = HsX s n i d

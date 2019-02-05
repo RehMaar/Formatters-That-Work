@@ -10,6 +10,7 @@ import Language.Haskell.GHC.ExactPrint
 import qualified GHC as G
 import qualified OccName as G
 import qualified RdrName as G
+import qualified Name as G
 import qualified BasicTypes as G
 import qualified Bag as G
 
@@ -23,6 +24,8 @@ import qualified FastString as FS
 import qualified Data.Data as DD
 
 import Data.List
+
+import Debug.Trace
 
 import CommonTtgAST
 
@@ -51,6 +54,7 @@ getAst ans = f <$> G.unLoc <*> getSrcInfo ans
 getDecls :: EP.Anns -> G.HsModule G.GhcPs -> [Decls]
 getDecls ans hm = f <$> (G.hsmodDecls hm)
   where
+    --f n = matchDecls ans (G.unLoc n) n
     f = matchDecls ans <$> G.unLoc <*> getSrcInfo ans
 
 -- Module name
@@ -129,11 +133,12 @@ matchExpr ans (G.HsLet locs expr) =
   Let (matchLocalFunBind ans $ G.unLoc locs) (matchExprSI ans expr)
 matchExpr ans (G.ExprWithTySig expr typ) =
   ExprWithType (matchExprSI ans expr) (matchSigWcType ans typ)
+matchExpr ans (G.HsPar expr) = Par $ matchExprSI ans expr
 matchExpr _ g = \_ -> error $ "unsupported " ++ ctorExprPrint g
 
 matchLocalFunBind ans (G.HsValBinds (G.ValBindsIn binds sigs)) =
-  let types = (matchSigBind ans . G.unLoc) <$> sigs
-      vals  = (matchFunBind ans . G.unLoc) <$> G.bagToList binds
+  let types = (matchSigBind ans <$> G.unLoc <*> getSrcInfo ans) <$> sigs
+      vals  = (matchFunBind ans <$> G.unLoc <*> getSrcInfo ans) <$> G.bagToList binds
       --vals  = (matchFunBind <$> G.unLoc <*> getSrcInfo) <$> G.bagToList binds
   in  ValLocalBind vals types
 matchLocalFunBind _ G.EmptyLocalBinds = EmptyLocalBind
@@ -143,18 +148,17 @@ matchLocalFunBind _ _                 = error "unsupported LocalBind ctor!"
 matchFunBind ans (G.FunBind id match _ _ _) = FunBind
   (getFunBindIdName ans id)
   (matchMatchGroup match)
-  (getSrcInfo ans id)
  where
   matchMatchGroup (G.MG alts _ _ _) = (matchMatch <$> G.unLoc <*> getSrcInfo ans) <$> (G.unLoc alts)
   matchMatch (G.Match ctx pats grhs) =
     let argsp   = matchPatSI ans <$> pats
         exprss  = (getExprs ans . G.unLoc) <$> (dectrGRHSSExprs grhs)
         stmts   = (getStmts ans . G.unLoc) <$> (dectrGRHSSExprs grhs)
-        msis    = getSrcInfo ans <$> (dectrGRHSSExprs grhs)
+        msis    = (getSrcInfo ans) <$> (dectrGRHSSExprs grhs)
         localsb = getLocals $ G.unLoc (dectrGRHSSLocals grhs)
     in  Match argsp (uncurry3 GRHS <$> zip3 stmts exprss msis) localsb
    where
-    uncurry3 f (s, e, m) = f s e m
+    uncurry3 f (s, e, m) = s `seq` e `seq` m `seq` f s e m
     dectrGRHSSExprs (G.GRHSs bod loc) = bod
     dectrGRHSSLocals (G.GRHSs bod loc) = loc
     getExprs ans (G.GRHS stmts body) = matchExprSI ans body
@@ -184,7 +188,7 @@ matchTyp ans (G.HsAppTy t1 t2) =
   TyApp (matchTypSI ans t1) (matchTypSI ans t2)
 matchTyp ans (G.HsFunTy t1 t2) =
   TyFun (matchTypSI ans t1) (matchTypSI ans t2)
-matchTyp ans (G.HsTupleTy _ tps) = error "Turple in types!"
+matchTyp ans (G.HsTupleTy _ tps) = TyTuple $ matchTypSI ans <$> tps
 matchTyp ans (G.HsListTy tp    ) = TyList $ matchTypSI ans tp
 matchTyp _ _                   = error "unknown type"
 
@@ -194,16 +198,16 @@ matchSigBind ans (G.TypeSig id thing) = TypeSig (names id) (sigs thing)
   sigs (G.HsWC _ (G.HsIB _ b _)) = matchTypSI ans b
 matchSigBind _ _ = error "unknown sig"
 
-matchDecls :: EP.Anns -> G.HsDecl G.GhcPs -> Maybe SrcInfo -> Decls
-matchDecls ans (G.ValD a) = ValDecl $ matchFunBind ans a
-matchDecls ans (G.SigD a) = SigDecl $ matchSigBind ans a
+--matchDecls :: EP.Anns -> G.HsDecl G.GhcPs -> G.Located a -> Decls
+matchDecls ans (G.ValD a) = ValDecl $ matchFunBind ans a Nothing
+matchDecls ans (G.SigD a) = SigDecl $ matchSigBind ans a Nothing
 matchDecls _ _          = error "unknown decl "
 
 handleFunBindId (G.Unqual name) = G.occNameString name
 handleFunBindId (G.Qual mod name) =
   (G.moduleNameString mod) ++ "." ++ (G.occNameString name)
 handleFunBindId (G.Orig mod name) = error "unknown name of type `Orig'"
-handleFunBindId (G.Exact name   ) = error "unknown name of type `Exac't"
+handleFunBindId (G.Exact name   ) = G.occNameString $ G.nameOccName name --error "unknown name of type `Exac't"
 
 -- HELPER
 

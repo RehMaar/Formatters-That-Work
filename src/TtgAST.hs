@@ -266,6 +266,7 @@ type family XIf           idx
 type family XDo           idx
 type family XCase         idx
 type family XExprWithType idx
+type family XPar          idx
 
 data ExprX idx = VarX (XVar idx) (NameX idx)
   | OverLitX      (XOverLit      idx) (OverLiteralsX idx)
@@ -278,6 +279,7 @@ data ExprX idx = VarX (XVar idx) (NameX idx)
   | DoX           (XDo           idx) [StmtX idx]
   | CaseX         (XCase         idx) (ExprX idx) (MatchX idx)
   | ExprWithTypeX (XExprWithType idx) (ExprX idx) (TypeX idx)
+  | ParX          (XPar          idx) (ExprX idx)
   | ExprX         (XExpr idx)
 
 {-

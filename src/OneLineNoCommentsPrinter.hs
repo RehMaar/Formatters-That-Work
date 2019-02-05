@@ -1,4 +1,4 @@
-module OneLineNoCommentsPrinter where
+module OneLineNoCommentsPrinter (oneline) where
 
 import Data.List
 
@@ -36,7 +36,7 @@ printBind (FunBind (Name name) matches) =
     printM (Match args grhss locs) =
       name ++ " " ++ printArgs args ++ (unwords $ printG <$> grhss) ++ printLocalBinds locs
 
-    printG (GRHS [] expr) = " = " ++ printExpr expr
+    printG (GRHS [] expr) = "= " ++ printExpr expr
     printG (GRHS [stmt] expr) = " | " ++ printStmt stmt ++ " = " ++ printExpr expr ++ ";"
 
     printArgs [] = ""
@@ -59,8 +59,11 @@ printBind (FunBind (Name name) matches) =
     printExpr (App expr1 expr2) = (printExpr expr1) ++ " " ++ (printExpr expr2)
     printExpr (OpApp le op re) = (printExpr le) ++ " " ++ (printExpr op) ++ " " ++ (printExpr re)
     printExpr (Let locs expr) = "let " ++ (printLocalBinds locs) ++ " in " ++ (printExpr expr)
+
+    printExpr (If c t e) = "if " ++ printExpr c ++ " then " ++ printExpr t ++ " else " ++ printExpr e
     printExpr (ExprWithType expr typ) = printExpr expr ++ " :: " ++ printType typ
-    printExpr _ = "expr"
+    printExpr (Par expr) = "(" ++ printExpr expr ++ ")"
+    printExpr _ = error "not impl"
 
     printOverLit (OverLitInteger i) = show i
     printOverLit (OverLitFractional f) = show f
@@ -83,5 +86,6 @@ printType (TyApps apt) = unwords $ printAppType <$> apt
 printType (TyApp t1 t2) = (printType t1) ++ " " ++ (printType t2)
 printType (TyFun t1 t2) = (printType t1) ++ " -> " ++ (printType t2)
 printType (TyList t1) = "[" ++ (printType t1) ++ "]"
+printType (TyTuple ts) = "(" ++ intercalate ", " (printType <$> ts) ++ ")"
 
-printSig (TypeSig names tp) = (unwords ((\(Name n) -> n) <$> names)) ++ " :: " ++ (printType tp) ++ ";"
+printSig (TypeSig names tp) = (intercalate ", " ((\(Name n) -> n) <$> names)) ++ " :: " ++ (printType tp) ++ ";"
