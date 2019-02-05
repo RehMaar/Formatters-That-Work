@@ -142,14 +142,21 @@ pattern ConstPat n cpd = ConstPatX () n cpd
 pattern WildPat :: Pat
 pattern WildPat = WildPatX ()
 
+-- GRHS
+
+type GRHS = GRHSX UD
+type instance XGRHS UD = ()
+
+pattern GRHS :: [Stmt] -> Expr -> GRHS
+pattern GRHS s e = GRHSX () s e
+
 -- MATCH
 
 type Match = MatchX UD
 type instance XMatch UD = ()
-type instance XMatchCtr UD = ()
 
-pattern Match :: [Pat] -> [[Stmt]] -> [Expr] -> LocalBind -> Match
-pattern Match ps sss es lb = MatchX () ps sss es lb
+pattern Match :: [Pat] -> [GRHS] -> LocalBind -> Match
+pattern Match ps grhs lb = MatchX () ps grhs lb
 
 -- LOCAL BIND
 
@@ -300,6 +307,7 @@ deriving instance Show Literals
 deriving instance Show OverLiterals
 deriving instance Show Expr
 deriving instance Show LocalBind
+deriving instance Show GRHS
 deriving instance Show Match
 deriving instance Show Bind
 deriving instance Show Decls
