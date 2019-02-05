@@ -3,15 +3,21 @@ module Main where
 import System.Environment
 
 import CommonASTParser
-import TtgGarden
-import OneLinePrinter
+import qualified SimpleConverter as Simple
+import qualified OneLineNoCommentsPrinter as Simple
+import qualified AnnConverter as Ann
+import qualified OneLinePrinter as Ann
 
-handle file =
+handle mode file =
   do
     res <- parseAST file
     case res of
       Left str -> error str
-      Right ast -> return $ oneline $ toSimpl ast
+      Right ast -> return $ switch mode ast
+  where
+    switch [] = Simple.oneline . Simple.toSimpl
+    switch "simple" = Simple.oneline . Simple.toSimpl
+    switch "comment" = Ann.oneline . Ann.toAnn
 
 main :: IO ()
 main =
@@ -19,6 +25,6 @@ main =
      s <- getArgs
      if null s
          then
-            putStrLn "error: no input file."
+            putStrLn "error: need mode (`simple` or `comment`) and file."
          else
-            handle (head s) >>= putStr
+            handle (head s) (s!!1) >>= putStr
