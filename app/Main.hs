@@ -18,6 +18,7 @@ handle mode file =
     switch [] = Simple.oneline . Simple.toSimpl
     switch "simple" = Simple.oneline . Simple.toSimpl
     switch "comment" = Ann.oneline . Ann.toAnn
+    switch _ = error "Unknown mode"
 
 main :: IO ()
 main =
