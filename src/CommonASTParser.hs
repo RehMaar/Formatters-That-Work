@@ -150,9 +150,11 @@ matchFunBind ans (G.FunBind id match _ _ _) = FunBind
     let argsp   = matchPatSI ans <$> pats
         exprss  = (getExprs ans . G.unLoc) <$> (dectrGRHSSExprs grhs)
         stmts   = (getStmts ans . G.unLoc) <$> (dectrGRHSSExprs grhs)
+        msis    = getSrcInfo ans <$> (dectrGRHSSExprs grhs)
         localsb = getLocals $ G.unLoc (dectrGRHSSLocals grhs)
-    in  Match argsp stmts exprss localsb
+    in  Match argsp (uncurry3 GRHS <$> zip3 stmts exprss msis) localsb
    where
+    uncurry3 f (s, e, m) = f s e m
     dectrGRHSSExprs (G.GRHSs bod loc) = bod
     dectrGRHSSLocals (G.GRHSs bod loc) = loc
     getExprs ans (G.GRHS stmts body) = matchExprSI ans body

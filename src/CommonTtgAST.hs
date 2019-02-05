@@ -138,14 +138,20 @@ pattern ConstPat n cpd msi = ConstPatX msi n cpd
 pattern WildPat :: Maybe SrcInfo -> Pat
 pattern WildPat msi = WildPatX msi
 
+-- GHRS
+type GRHS = GRHSX ComID
+type instance XGRHS ComID = Maybe SrcInfo
+
+pattern GRHS :: [Stmt] -> Expr -> Maybe SrcInfo -> GRHS
+pattern GRHS s ex msi = GRHSX msi s ex
+
 -- MATCH
 
 type Match = MatchX ComID
-type instance XMatch ComID = ()
-type instance XMatchCtr ComID = Maybe SrcInfo
+type instance XMatch ComID = Maybe SrcInfo
 
-pattern Match :: [Pat] -> [[Stmt]] -> [Expr] -> LocalBind -> Maybe SrcInfo -> Match
-pattern Match ps sss es lb msi = MatchX msi ps sss es lb
+pattern Match :: [Pat] -> [GRHS] -> LocalBind -> Maybe SrcInfo -> Match
+pattern Match ps grhs lb msi = MatchX msi ps grhs lb
 
 -- LOCAL BIND
 
@@ -296,6 +302,7 @@ deriving instance Show Literals
 deriving instance Show OverLiterals
 deriving instance Show Expr
 deriving instance Show LocalBind
+deriving instance Show GRHS
 deriving instance Show Match
 deriving instance Show Bind
 deriving instance Show Decls
