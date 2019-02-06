@@ -19,4 +19,4 @@ Trees-That-Grow Haskell
 
 Собрать исполняемый файл: `stack build`.
 
-Запустить: `stack exec ftw-exe file.hs`.
+Запустить: `stack exec ftw-exe [simple | comment] file.hs`.
