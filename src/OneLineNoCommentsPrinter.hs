@@ -52,7 +52,7 @@ printBind (FunBind (Name name) matches) =
     ifStmts (s:st) (e:ex) = " | " ++ (printStmt s) ++
                             " = " ++ (printExpr e) ++ ";" ++ ifStmts st ex
 
-    printExpr (Var (Name n)) = n
+    printExpr (Var (Name n)) = "(" ++ n ++ ")"
     printExpr (OverLit l) = printOverLit l
     printExpr (Lit l) = printLit l
     printExpr (Lam m) = error "printExpr: lam"

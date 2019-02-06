@@ -201,7 +201,7 @@ matchSigBind _ _ = error "unknown sig"
 --matchDecls :: EP.Anns -> G.HsDecl G.GhcPs -> G.Located a -> Decls
 matchDecls ans (G.ValD a) = ValDecl $ matchFunBind ans a Nothing
 matchDecls ans (G.SigD a) = SigDecl $ matchSigBind ans a Nothing
-matchDecls _ _          = error "unknown decl "
+matchDecls _ _          = error "unknown decl"
 
 handleFunBindId (G.Unqual name) = G.occNameString name
 handleFunBindId (G.Qual mod name) =

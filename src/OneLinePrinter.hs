@@ -197,7 +197,7 @@ printBind (FunBind name matches sif) = {-"{ " ++ show (getAnn sif) ++ " }" ++ -}
   printLit (LitChar   c) = show c
   printLit (LitString s) = show s
 
-  printExpr (Var name si) = printVar (getAnn si) (printName name)
+  printExpr (Var name@(Name _ sin) si) = printVar (getAnn sin) (printName name)
     where
       pritnVar Nothing n = n
       printVar (Just ann@(EP.Ann _ _ _ ki _ _)) n = openB ++ n ++ closeB
