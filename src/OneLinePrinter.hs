@@ -117,10 +117,10 @@ printImports (imp:imps) = printImport imp ++ "; " ++ printImports imps
     printAs Nothing     = ""
     printAs (Just name) = " as " ++ printName name
 
-printDecl (ValDecl bind si) = printComment' (getAnn si) (printBind bind)
+printDecl (ValDecl bind si) = printComment' (getAnn si) (printBind bind) ++ ";"
 printDecl (SigDecl s    si) = printSig (getAnn si) s
 
-printBind (FunBind name matches sif) = {-"{ " ++ show (getAnn sif) ++ " }" ++ -}intercalate ";" (printMatch <$> matches) ++ ";"
+printBind (FunBind name matches sif) = {-"{ " ++ show (getAnn sif) ++ " }" ++ -}intercalate ";" (printMatch <$> matches)
  where
     {-
        name m_args | m_stmts!!0 = exprs!!0
